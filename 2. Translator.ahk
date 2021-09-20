@@ -35,8 +35,8 @@ ButtonTranslate:
   GuiControl, , Translation, Translating...`n翻译中...
   
   ; To determine whether Chinese to English or English to Chinese translation is based on the percentage of Chinese characters in the original text
-  Non_Chinese_Characters:=RegExReplace(Original, "[一-龟]")
-  if (StrLen(Non_Chinese_Characters)/StrLen(Original) > 0.7)
+  RegExReplace(Original, "[一-龟]", , Chinese_Characters)
+  if (StrLen(Chinese_Characters)/StrLen(Original) > 0.6)
     ; In SogouTranslator, "zh-CHS" means Chinese. However, in DeepLTranslator, "zh" means Chinese.
     ; This means that the abbreviated characters representing the language may differ slightly in different Translators.
     ret := SogouTranslator.translate(Original, "zh-CHS", "en")
