@@ -1,18 +1,18 @@
 ﻿; Initialization, which is required.
-SogouTranslator.init()
+BaiduTranslator.init()
 
 ; Translate text from Japanese to English.
-MsgBox,% SogouTranslator.translate("今日の天気はとても良いです", "ja", "en")
-; SogouTranslator and BaiduTranslator supports automatic detection language by using "auto", but DeepLTranslator does not.
-MsgBox,% SogouTranslator.translate("今日の天気はとても良いです", "auto", "en")
+MsgBox,% BaiduTranslator.translate("今日の天気はとても良いです", "ja", "en")
+; BaiduTranslator and SogouTranslator supports automatic detection language by using "auto", but DeepLTranslator does not.
+MsgBox,% BaiduTranslator.translate("今日の天気はとても良いです", "auto", "en")
 ; Omitting the parameters 2 and 3 means translate text from English to Chinese.
-MsgBox,% SogouTranslator.translate("Hello my love")
+MsgBox,% BaiduTranslator.translate("Hello my love")
 
 ; Release resources, which is required.
-SogouTranslator.free()
+BaiduTranslator.free()
 ExitApp
 
-#Include <SogouTranslator>
+#Include <BaiduTranslator>
 
 
 
@@ -22,15 +22,15 @@ The other two libraries are used in a very similar way to SogouTranslator.
 
 For example:
 
+  SogouTranslator.init()
+  SogouTranslator.translate("text")
+  SogouTranslator.free()
+  #Include <SogouTranslator>
+
   DeepLTranslator.init()
   DeepLTranslator.translate("text")
   DeepLTranslator.free()
   #Include <DeepLTranslator>
-
-  BaiduTranslator.init()
-  BaiduTranslator.translate("text")
-  BaiduTranslator.free()
-  #Include <BaiduTranslator>
 
 -------------------------------------------------------------------------
 The difference between them is very subtle.
