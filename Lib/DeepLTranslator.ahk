@@ -1,5 +1,5 @@
 ﻿; https://www.deepl.com/translator
-; version: 2021.09.19
+; version: 2021.09.29
 
 class DeepLTranslator
 {
@@ -59,7 +59,8 @@ class DeepLTranslator
 		
 		; 构造 url
 		this.NonNull(from, "en"), this.NonNull(to, "zh")
-		url := Format("https://www.deepl.com/translator#{1}/{2}/{3}", from, to, this.UriEncode(str))
+		; DeepL 需要额外将转义后的 / 再次转义为 \/
+		url := Format("https://www.deepl.com/translator#{1}/{2}/{3}", from, to, StrReplace(this.UriEncode(str), "%2F", "%5C%2F"))
 		
 		; url 超过最大长度
 		if (StrLen(url)>8182)
