@@ -1,5 +1,6 @@
 ﻿; todo:
 ; 自动 free() 后可以自动退出
+; --headless 下不能使用 --user-data-dir=
 
 gosub, CreateGUI
 gosub, InitializeTranslator
