@@ -65,7 +65,7 @@ class YoudaoTranslator
     }
     
     ; 选择语言
-    if (_convertLanguageAbbr(from, to)=this.multiLanguage.6)
+    if (this._convertLanguageAbbr(from, to)=this.multiLanguage.6)
       return, this.multiLanguage.6
     
     ; 翻译

@@ -61,7 +61,7 @@ class BaiduTranslator
     this._clearResult()
     
     ; 构造 url
-    l := _convertLanguageAbbr(from, to)
+    l := this._convertLanguageAbbr(from, to)
     url := Format("https://fanyi.baidu.com/#{1}/{2}/{3}", l.from, l.to, this.UriEncode(str))
     
     ; url 超过最大长度

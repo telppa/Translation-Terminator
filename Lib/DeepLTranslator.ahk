@@ -58,7 +58,7 @@ class DeepLTranslator
       return, this.multiLanguage.3
     
     ; 构造 url
-    l := _convertLanguageAbbr(from, to)
+    l := this._convertLanguageAbbr(from, to)
     ; DeepL 需要额外将转义后的 / 再次转义为 \/
     url := Format("https://www.deepl.com/translator#{1}/{2}/{3}", l.from, l.to, StrReplace(this.UriEncode(str), "%2F", "%5C%2F"))
     

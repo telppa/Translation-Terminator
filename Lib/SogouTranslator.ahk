@@ -59,7 +59,7 @@ class SogouTranslator
       return, this.multiLanguage.3
     
     ; 构造 url
-    l := _convertLanguageAbbr(from, to)
+    l := this._convertLanguageAbbr(from, to)
     url  := Format("https://fanyi.sogou.com/text?keyword={1}&transfrom={2}&transto={3}&model=general", this.UriEncode(str), l.from, l.to)
     
     ; url 超过最大长度
