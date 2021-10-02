@@ -1,5 +1,5 @@
 ﻿; https://fanyi.baidu.com/
-; version: 2021.09.19
+; version: 2021.10.02
 
 class BaiduTranslator
 {
@@ -61,8 +61,8 @@ class BaiduTranslator
     this._clearResult()
     
     ; 构造 url
-    this.NonNull(from, "en"), this.NonNull(to, "zh")
-    url := Format("https://fanyi.baidu.com/#{1}/{2}/{3}", from, to, this.UriEncode(str))
+    l := _convertLanguageAbbr(from, to)
+    url := Format("https://fanyi.baidu.com/#{1}/{2}/{3}", l.from, l.to, this.UriEncode(str))
     
     ; url 超过最大长度
     if (StrLen(url)>8182)
@@ -101,6 +101,7 @@ class BaiduTranslator
       l.3 := "待翻译文字超过最大长度！"
       l.4 := "URL 超过最大长度！"
       l.5 := "超时！"
+      l.6 := "不支持此两种语言间的翻译！"
     }
     else
     {
@@ -109,7 +110,21 @@ class BaiduTranslator
       l.3 := "The text to be translated is over the maximum length!"
       l.4 := "The URL is over the maximum length!"
       l.5 := "Timeout!"
+      l.6 := "Translation between these two languages is not supported!"
     }
+  }
+  
+  _convertLanguageAbbr(from, to)
+  {
+    this.NonNull(from, "en"), this.NonNull(to, "zh")
+    ; 除 ro 被罗姆语占用外，其它均是无冲突转换
+    dict     := {et:"est", bg:"bul", da:"dan", fr:"fra", fi:"fin"
+               , ko:"kor", lv:"lav", lt:"lit", ro:"rom", ja:"jp"
+               , sv:"swe", sl:"slo", es:"spa"}
+    ret      := {}
+    ret.from := dict.HasKey(from) ? dict[from] : from
+    ret.to   := dict.HasKey(to)   ? dict[to]   : to
+    return, ret
   }
   
   _clearResult()

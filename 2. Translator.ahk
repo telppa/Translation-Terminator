@@ -1,6 +1,7 @@
 ﻿; todo:
 ; 自动 free() 后可以自动退出
 ; --headless 下不能使用 --user-data-dir=
+; --headless 下临时文件乱跑
 
 gosub, CreateGUI
 gosub, InitializeTranslator
@@ -38,9 +39,7 @@ ButtonTranslate:
   ; To determine whether Chinese to English or English to Chinese translation is based on the percentage of Chinese characters in the original text
   RegExReplace(Original, "[一-龟]", , Chinese_Characters)
   if (Chinese_Characters/StrLen(Original) > 0.6)
-    ; In SogouTranslator, "zh-CHS" means Chinese. However, in DeepLTranslator, "zh" means Chinese.
-    ; This means that the abbreviated characters representing the language may differ slightly in different Translators.
-    ret := SogouTranslator.translate(Original, "zh-CHS", "en")
+    ret := SogouTranslator.translate(Original, "zh", "en")
   else
     ret := SogouTranslator.translate(Original)
   

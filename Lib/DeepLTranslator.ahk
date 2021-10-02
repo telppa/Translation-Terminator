@@ -1,5 +1,5 @@
 ﻿; https://www.deepl.com/translator
-; version: 2021.09.29
+; version: 2021.10.02
 
 class DeepLTranslator
 {
@@ -58,9 +58,9 @@ class DeepLTranslator
       return, this.multiLanguage.3
     
     ; 构造 url
-    this.NonNull(from, "en"), this.NonNull(to, "zh")
+    l := _convertLanguageAbbr(from, to)
     ; DeepL 需要额外将转义后的 / 再次转义为 \/
-    url := Format("https://www.deepl.com/translator#{1}/{2}/{3}", from, to, StrReplace(this.UriEncode(str), "%2F", "%5C%2F"))
+    url := Format("https://www.deepl.com/translator#{1}/{2}/{3}", l.from, l.to, StrReplace(this.UriEncode(str), "%2F", "%5C%2F"))
     
     ; url 超过最大长度
     if (StrLen(url)>8182)
@@ -99,6 +99,7 @@ class DeepLTranslator
       l.3 := "待翻译文字超过最大长度！"
       l.4 := "URL 超过最大长度！"
       l.5 := "超时！"
+      l.6 := "不支持此两种语言间的翻译！"
     }
     else
     {
@@ -107,7 +108,18 @@ class DeepLTranslator
       l.3 := "The text to be translated is over the maximum length!"
       l.4 := "The URL is over the maximum length!"
       l.5 := "Timeout!"
+      l.6 := "Translation between these two languages is not supported!"
     }
+  }
+  
+  _convertLanguageAbbr(from, to)
+  {
+    this.NonNull(from, "en"), this.NonNull(to, "zh")
+    dict     := {}
+    ret      := {}
+    ret.from := dict.HasKey(from) ? dict[from] : from
+    ret.to   := dict.HasKey(to)   ? dict[to]   : to
+    return, ret
   }
   
   _clearResult()

@@ -1,5 +1,5 @@
 ﻿; https://fanyi.youdao.com/
-; version: 2021.10.01
+; version: 2021.10.02
 
 class YoudaoTranslator
 {
@@ -65,40 +65,8 @@ class YoudaoTranslator
     }
     
     ; 选择语言
-    this.NonNull(from, "en"), this.NonNull(to, "zh")
-    languageSelected := from "-" to
-    ; 语言发生变化，需要重新选择
-    if (languageSelected!=this.languageSelected)
-    {
-      this.languageSelected := languageSelected
-      
-      if (from="auto" or to="auto")
-        this.page.Evaluate("document.querySelector('#languageSelect > li.default > a').click();")
-      else
-      {
-        ; 语言排列顺序与网页显示一致
-        langSel := {"zh-en":2 , "en-zh":3
-                  , "zh-ja":4 , "ja-zh":5
-                  , "zh-ko":6 , "ko-zh":7
-                  , "zh-fr":8 , "fr-zh":9
-                  , "zh-de":10, "de-zh":11
-                  , "zh-ru":12, "ru-zh":13
-                  , "zh-es":14, "es-zh":15
-                  , "zh-pt":16, "pt-zh":17
-                  , "zh-it":18, "it-zh":19
-                  , "zh-vi":20, "vi-zh":21
-                  , "zh-id":22, "id-zh":23
-                  , "zh-ar":24, "ar-zh":25
-                  , "zh-nl":26, "nl-zh":27
-                  , "zh-th":28, "th-zh":29}
-        
-        if (!langSel.HasKey(languageSelected))
-          return, this.multiLanguage.6
-        else
-          this.page.Evaluate(Format("document.querySelector('#languageSelect > li:nth-child({1}) > a').click();"
-                           , langSel[languageSelected]))
-      }
-    }
+    if (_convertLanguageAbbr(from, to)=this.multiLanguage.6)
+      return, this.multiLanguage.6
     
     ; 翻译
     this.page.Call("Input.insertText", {"text": str})
@@ -144,6 +112,44 @@ class YoudaoTranslator
       l.4 := "The URL is over the maximum length!"
       l.5 := "Timeout!"
       l.6 := "Translation between these two languages is not supported!"
+    }
+  }
+  
+  _convertLanguageAbbr(from, to)
+  {
+    this.NonNull(from, "en"), this.NonNull(to, "zh")
+    languageSelected := from "-" to
+    ; 语言发生变化，需要重新选择
+    if (languageSelected!=this.languageSelected)
+    {
+      this.languageSelected := languageSelected
+      
+      if (from="auto")
+        this.page.Evaluate("document.querySelector('#languageSelect > li.default > a').click();")
+      else
+      {
+        ; 语言排列顺序与网页显示一致
+        langSel := {"zh-en":2 , "en-zh":3
+                  , "zh-ja":4 , "ja-zh":5
+                  , "zh-ko":6 , "ko-zh":7
+                  , "zh-fr":8 , "fr-zh":9
+                  , "zh-de":10, "de-zh":11
+                  , "zh-ru":12, "ru-zh":13
+                  , "zh-es":14, "es-zh":15
+                  , "zh-pt":16, "pt-zh":17
+                  , "zh-it":18, "it-zh":19
+                  , "zh-vi":20, "vi-zh":21
+                  , "zh-id":22, "id-zh":23
+                  , "zh-ar":24, "ar-zh":25
+                  , "zh-nl":26, "nl-zh":27
+                  , "zh-th":28, "th-zh":29}
+        
+        if (!langSel.HasKey(languageSelected))
+          return, this.multiLanguage.6
+        else
+          this.page.Evaluate(Format("document.querySelector('#languageSelect > li:nth-child({1}) > a').click();"
+                           , langSel[languageSelected]))
+      }
     }
   }
   
