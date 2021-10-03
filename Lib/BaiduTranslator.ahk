@@ -1,5 +1,5 @@
 ﻿; https://fanyi.baidu.com/
-; version: 2021.10.02
+; version: 2021.10.03
 
 class BaiduTranslator
 {
@@ -33,7 +33,7 @@ class BaiduTranslator
     this.page.Call("Page.navigate", {"url": "https://fanyi.baidu.com/#en/zh/init"})
     
     ; 同步将产生阻塞直到返回结果，异步将快速返回以便用户自行处理结果
-    this._receive(mode, timeout)
+    this._receive(mode, timeout, true)
     
     ; 完成初始化
     this.ready := 1
@@ -71,6 +71,11 @@ class BaiduTranslator
     ; 翻译
     this.page.Call("Page.navigate", {"url": url})
     return, this._receive(mode, timeout)
+  }
+  
+  getInitResult()
+  {
+    return, this.getResult()
   }
   
   getResult()
@@ -132,7 +137,7 @@ class BaiduTranslator
     this.page.Evaluate("document.querySelector('#main-outer > div > div > div.translate-wrap > div.translateio > div.translate-main.clearfix > div.trans-right > div > div > div.output-bd').innerText='';")
   }
   
-  _receive(mode, timeout)
+  _receive(mode, timeout, getInitResult:=false)
   {
     ; 异步模式直接返回
     if (mode="async")
@@ -142,7 +147,7 @@ class BaiduTranslator
     startTime := A_TickCount
     loop
     {
-      ret := this.getResult()
+      ret := getInitResult ? this.getInitResult() : this.getResult()
       if (ret!="")
         return, ret
       else
@@ -156,11 +161,11 @@ class BaiduTranslator
   _exit()
   {
     if (this.page.connected)
-      deepl.free()
+      BaiduTranslator.free()
   }
   
-  #Include %A_LineFile%\..\NonNull.ahk
-  #Include %A_LineFile%\..\UriEncode.ahk
+  #IncludeAgain %A_LineFile%\..\NonNull.ahk
+  #IncludeAgain %A_LineFile%\..\UriEncode.ahk
 }
 
 #Include %A_LineFile%\..\Chrome.ahk

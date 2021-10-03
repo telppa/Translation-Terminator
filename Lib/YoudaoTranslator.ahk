@@ -1,5 +1,5 @@
 ﻿; https://fanyi.youdao.com/
-; version: 2021.10.02
+; version: 2021.10.03
 
 class YoudaoTranslator
 {
@@ -71,6 +71,15 @@ class YoudaoTranslator
     ; 翻译
     this.page.Call("Input.insertText", {"text": str})
     return, this._receive(mode, timeout)
+  }
+  
+  getInitResult()
+  {
+    ; 页面是否加载完成
+    if (this.page.Evaluate("document.readyState;").value = "complete")
+      return, "OK"
+    else
+      return
   }
   
   getResult()
@@ -158,53 +167,34 @@ class YoudaoTranslator
     this.page.Evaluate("document.querySelector('#inputDelete').click();")
   }
   
-  _receive(mode, timeout, isInit:=false)
+  _receive(mode, timeout, getInitResult:=false)
   {
     ; 异步模式直接返回
     if (mode="async")
       return
     
-    ; 初始化过程的检验
-    if (isInit)
+    ; 同步模式将在这里阻塞直到取得结果或超时
+    startTime := A_TickCount
+    loop
     {
-      startTime := A_TickCount
-      loop
-      {
-        ; 页面是否加载完成
-        if (this.Evaluate("document.readyState;").value != "complete")
-          return
-        else
-          Sleep, 500
-        
-        if ((A_TickCount-startTime)/1000 >= timeout)
-          return, this.multiLanguage.5
-      }
-    }
-    else
-    {
-      ; 同步模式将在这里阻塞直到取得结果或超时
-      startTime := A_TickCount
-      loop
-      {
-        ret := this.getResult()
-        if (ret!="")
-          return, ret
-        else
-          Sleep, 500
-        
-        if ((A_TickCount-startTime)/1000 >= timeout)
-          return, this.multiLanguage.5
-      }
+      ret := getInitResult ? this.getInitResult() : this.getResult()
+      if (ret!="")
+        return, ret
+      else
+        Sleep, 500
+      
+      if ((A_TickCount-startTime)/1000 >= timeout)
+        return, this.multiLanguage.5
     }
   }
   
   _exit()
   {
     if (this.page.connected)
-      deepl.free()
+      YoudaoTranslator.free()
   }
   
-  #Include %A_LineFile%\..\NonNull.ahk
+  #IncludeAgain %A_LineFile%\..\NonNull.ahk
 }
 
 #Include %A_LineFile%\..\Chrome.ahk

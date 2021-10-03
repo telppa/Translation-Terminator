@@ -1,5 +1,5 @@
 ﻿; https://www.deepl.com/translator
-; version: 2021.10.02
+; version: 2021.10.03
 
 class DeepLTranslator
 {
@@ -33,7 +33,7 @@ class DeepLTranslator
     this.page.Call("Page.navigate", {"url": "https://www.deepl.com/translator#en/zh/init"})
     
     ; 同步将产生阻塞直到返回结果，异步将快速返回以便用户自行处理结果
-    this._receive(mode, timeout)
+    this._receive(mode, timeout, true)
     
     ; 完成初始化
     this.ready := 1
@@ -69,6 +69,11 @@ class DeepLTranslator
     ; 翻译
     this.page.Call("Page.navigate", {"url": url})
     return, this._receive(mode, timeout)
+  }
+  
+  getInitResult()
+  {
+    return, this.getResult()
   }
   
   getResult()
@@ -127,7 +132,7 @@ class DeepLTranslator
     this.page.Evaluate("document.querySelector('#target-dummydiv').textContent='';")
   }
   
-  _receive(mode, timeout)
+  _receive(mode, timeout, getInitResult:=false)
   {
     ; 异步模式直接返回
     if (mode="async")
@@ -137,7 +142,7 @@ class DeepLTranslator
     startTime := A_TickCount
     loop
     {
-      ret := this.getResult()
+      ret := getInitResult ? this.getInitResult() : this.getResult()
       if (ret!="")
         return, ret
       else
@@ -151,11 +156,11 @@ class DeepLTranslator
   _exit()
   {
     if (this.page.connected)
-      deepl.free()
+      DeepLTranslator.free()
   }
   
-  #Include %A_LineFile%\..\NonNull.ahk
-  #Include %A_LineFile%\..\UriEncode.ahk
+  #IncludeAgain %A_LineFile%\..\NonNull.ahk
+  #IncludeAgain %A_LineFile%\..\UriEncode.ahk
 }
 
 #Include %A_LineFile%\..\Chrome.ahk

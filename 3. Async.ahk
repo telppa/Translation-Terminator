@@ -15,7 +15,7 @@ loop
   ; https://github.com/telppa/BeautifulToolTip
   ToolTip, Initializing%ellipsis%
   
-  if (DeepLTranslator.getResult()!="")
+  if (DeepLTranslator.getInitResult()!="")
   {
     MsgBox, Initialization succeeded
     break
