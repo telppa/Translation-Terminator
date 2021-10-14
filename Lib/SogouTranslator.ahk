@@ -1,5 +1,5 @@
 ﻿; https://fanyi.sogou.com/
-; version: 2021.10.03
+; version: 2021.10.12
 
 class SogouTranslator
 {
@@ -27,14 +27,14 @@ class SogouTranslator
       ChromeInst := new Chrome(profilePath,, "--headless --user-agent=""Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36""", chromePath, debugPort)
     
     ; 退出时自动释放资源
-    this.page := ChromeInst.GetPage()
     OnExit(ObjBindMethod(this, "_exit"))
     
     ; 初始化，也就是先加载一次页面
-    this.page.Call("Page.navigate", {"url": "https://fanyi.sogou.com/text?keyword=init&transfrom=en&transto=zh-CHS&model=general"})
+    this.page := ChromeInst.GetPage()
+    this.page.Call("Page.navigate", {"url": "https://fanyi.sogou.com/text?keyword=init&transfrom=en&transto=zh-CHS&model=general"}, mode="async" ? false : true)
     
     ; 同步将产生阻塞直到返回结果，异步将快速返回以便用户自行处理结果
-    this._receive(mode, timeout, true)
+    this._receive(mode, timeout, "getInitResult")
     
     ; 完成初始化
     this.ready := 1
@@ -52,31 +52,31 @@ class SogouTranslator
     
     ; 待翻译的文字为空
     if (Trim(str, " `t`r`n`v`f")="")
-      return, this.multiLanguage.2
+      return, {Error : this.multiLanguage.2}
     
     ; 待翻译的文字超过 sogou 支持的单次最大长度
     if (StrLen(str)>5000)
-      return, this.multiLanguage.3
+      return, {Error : this.multiLanguage.3}
     
     ; 构造 url
     l := this._convertLanguageAbbr(from, to)
-    url  := Format("https://fanyi.sogou.com/text?keyword={1}&transfrom={2}&transto={3}&model=general", this.UriEncode(str), l.from, l.to)
+    url := Format("https://fanyi.sogou.com/text?keyword={1}&transfrom={2}&transto={3}&model=general", this.UriEncode(str), l.from, l.to)
     
     ; url 超过最大长度
     if (StrLen(url)>8182)
-      return, this.multiLanguage.4
+      return, {Error : this.multiLanguage.4}
     
     ; 翻译
-    this.page.Call("Page.navigate", {"url": url})
-    return, this._receive(mode, timeout)
+    this.page.Call("Page.navigate", {"url": url}, mode="async" ? false : true)
+    return, this._receive(mode, timeout, "getTransResult")
   }
   
   getInitResult()
   {
-    return, this.getResult()
+    return, this.getTransResult()
   }
   
-  getResult()
+  getTransResult()
   {
     ; 获取翻译结果
     try
@@ -89,8 +89,8 @@ class SogouTranslator
   
   free()
   {
-    this.page.Call("Browser.close")	; 关闭浏览器(所有页面和标签)
-    this.page.Disconnect()					; 断开连接
+    this.page.Call("Browser.close",, false) ; 关闭浏览器(所有页面和标签)
+    this.page.Disconnect()                  ; 断开连接
   }
   
   _multiLanguage()
@@ -127,12 +127,12 @@ class SogouTranslator
     return, ret
   }
   
-  _clearResult()
+  _clearTransResult()
   {
     this.page.Evaluate("document.querySelector('#trans-result').textContent='';")
   }
   
-  _receive(mode, timeout, getInitResult:=false)
+  _receive(mode, timeout, result)
   {
     ; 异步模式直接返回
     if (mode="async")
@@ -142,21 +142,21 @@ class SogouTranslator
     startTime := A_TickCount
     loop
     {
-      ret := getInitResult ? this.getInitResult() : this.getResult()
+      ret := result="getInitResult" ? this.getInitResult() : this.getTransResult()
       if (ret!="")
         return, ret
       else
         Sleep, 500
       
       if ((A_TickCount-startTime)/1000 >= timeout)
-        return, this.multiLanguage.5
+        return, {Error : this.multiLanguage.5}
     }
   }
   
   _exit()
   {
     if (this.page.connected)
-      SogouTranslator.free()
+      this.free()
   }
   
   #IncludeAgain %A_LineFile%\..\NonNull.ahk
