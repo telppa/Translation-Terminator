@@ -24,7 +24,7 @@ Init:
   ; 不要把 chromePath 造为超级全局变量，会污染到库中的同名变量
   chromePath := "Chrome\chrome.exe"
   
-  global Lang, Translators, hMain, Original, btnTranslate, Original2
+  global Lang, Translators, hMain, Original, OuterOriginal, btnTranslate
   
   Lang := MultiLanguage()
   
@@ -55,7 +55,7 @@ CreatMain:
   Gui, Font, s10, 微软雅黑
   
   Gui, Add, Edit, x16 y16 w450 h150 vOriginal +Disabled
-  Gui, Add, Edit, x0 y0 w0 h0 vOriginal2 gTranslate2  ; 隐藏控件，用于接收外部调用
+  Gui, Add, Edit, x0 y0 w0 h0 vOuterOriginal gOuterCallHandler  ; 隐藏控件，用于接收外部调用
   
   Gui, Add, CheckBox, x16 y184 w60 h23 vDeepL gShowOrHideSub Checked, % Lang.81
   Gui, Add, CheckBox, x88 y184 w60 h23 vSogou gShowOrHideSub, % Lang.82
@@ -74,7 +74,7 @@ return
 CreatSub:
   for k, v in Translators
   {
-    Gui, %k%:+Owner%hMain% +Hwndh%k% +LabelSub_On  ; 所有子窗口的事件标签都以 Sub_On 开头，例如 Sub_OnClose
+    Gui, %k%:+Owner%hMain% +Hwndh%k% +LabelSub  ; 所有子窗口的事件标签都以 Sub 开头，例如 SubClose
     Gui, %k%:Font, s12, 微软雅黑
     Gui, %k%:Add, Edit, x0 y0 w482 h150 v%k%Edit +Disabled
     Gui, %k%:Show, Hide w482 h150, % v.name
@@ -356,14 +356,14 @@ CheckTrans()
 }
 
 ; 这是一个隐藏控件，用于接收外部对翻译器的调用
-Translate2(ControlHwnd, GuiEvent, EventInfo, ErrLevel:="")
+OuterCallHandler(ControlHwnd, GuiEvent, EventInfo, ErrLevel:="")
 {
   ShowAll()
   
   Gui, Submit, NoHide
-  if (Trim(Original2, " `t`r`n`v`f")!="")
+  if (Trim(OuterOriginal, " `t`r`n`v`f")!="")
   {
-    GuiControl, , Original, %Original2%
+    GuiControl, , Original, %OuterOriginal%
     GuiControlGet, OutputVar, Enabled, btnTranslate
     if (OutputVar)
       Translate("", "", "", "")
@@ -388,7 +388,7 @@ GuiClose:
 return
 
 ; 屏蔽子窗口关闭。这样就不用处理多选框的反向勾选问题了
-Sub_OnClose:
+SubClose:
 return
 
 ShowAll()
