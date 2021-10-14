@@ -1,5 +1,5 @@
 ﻿; https://fanyi.baidu.com/
-; version: 2021.10.03
+; version: 2021.10.12
 
 class BaiduTranslator
 {
@@ -26,14 +26,14 @@ class BaiduTranslator
       ChromeInst := new Chrome(profilePath,, "--headless", chromePath, debugPort)
     
     ; 退出时自动释放资源
-    this.page := ChromeInst.GetPage()
     OnExit(ObjBindMethod(this, "_exit"))
     
     ; 初始化，也就是先加载一次页面
-    this.page.Call("Page.navigate", {"url": "https://fanyi.baidu.com/#en/zh/init"})
+    this.page := ChromeInst.GetPage()
+    this.page.Call("Page.navigate", {"url": "https://fanyi.baidu.com/#en/zh/init"}, mode="async" ? false : true)
     
     ; 同步将产生阻塞直到返回结果，异步将快速返回以便用户自行处理结果
-    this._receive(mode, timeout, true)
+    this._receive(mode, timeout, "getInitResult")
     
     ; 完成初始化
     this.ready := 1
@@ -51,14 +51,14 @@ class BaiduTranslator
     
     ; 待翻译的文字为空
     if (Trim(str, " `t`r`n`v`f")="")
-      return, this.multiLanguage.2
+      return, {Error : this.multiLanguage.2}
     
     ; 待翻译的文字超过 baidu 支持的单次最大长度
     if (StrLen(str)>5000)
-      return, this.multiLanguage.3
+      return, {Error : this.multiLanguage.3}
     
     ; 清空上次翻译结果，避免获取到上次的结果
-    this._clearResult()
+    this._clearTransResult()
     
     ; 构造 url
     l := this._convertLanguageAbbr(from, to)
@@ -66,19 +66,19 @@ class BaiduTranslator
     
     ; url 超过最大长度
     if (StrLen(url)>8182)
-      return, this.multiLanguage.4
+      return, {Error : this.multiLanguage.4}
     
     ; 翻译
-    this.page.Call("Page.navigate", {"url": url})
-    return, this._receive(mode, timeout)
+    this.page.Call("Page.navigate", {"url": url}, mode="async" ? false : true)
+    return, this._receive(mode, timeout, "getTransResult")
   }
   
   getInitResult()
   {
-    return, this.getResult()
+    return, this.getTransResult()
   }
   
-  getResult()
+  getTransResult()
   {
     ; 获取翻译结果
     try
@@ -91,8 +91,8 @@ class BaiduTranslator
   
   free()
   {
-    this.page.Call("Browser.close")	; 关闭浏览器(所有页面和标签)
-    this.page.Disconnect()					; 断开连接
+    this.page.Call("Browser.close",, false) ; 关闭浏览器(所有页面和标签)
+    this.page.Disconnect()                  ; 断开连接
   }
   
   _multiLanguage()
@@ -132,12 +132,12 @@ class BaiduTranslator
     return, ret
   }
   
-  _clearResult()
+  _clearTransResult()
   {
     this.page.Evaluate("document.querySelector('#main-outer > div > div > div.translate-wrap > div.translateio > div.translate-main.clearfix > div.trans-right > div > div > div.output-bd').innerText='';")
   }
   
-  _receive(mode, timeout, getInitResult:=false)
+  _receive(mode, timeout, result)
   {
     ; 异步模式直接返回
     if (mode="async")
@@ -147,21 +147,21 @@ class BaiduTranslator
     startTime := A_TickCount
     loop
     {
-      ret := getInitResult ? this.getInitResult() : this.getResult()
+      ret := result="getInitResult" ? this.getInitResult() : this.getTransResult()
       if (ret!="")
         return, ret
       else
         Sleep, 500
       
       if ((A_TickCount-startTime)/1000 >= timeout)
-        return, this.multiLanguage.5
+        return, {Error : this.multiLanguage.5}
     }
   }
   
   _exit()
   {
     if (this.page.connected)
-      BaiduTranslator.free()
+      this.free()
   }
   
   #IncludeAgain %A_LineFile%\..\NonNull.ahk
