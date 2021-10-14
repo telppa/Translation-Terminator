@@ -1,5 +1,5 @@
 ﻿; https://fanyi.youdao.com/
-; version: 2021.10.03
+; version: 2021.10.12
 
 class YoudaoTranslator
 {
@@ -26,14 +26,14 @@ class YoudaoTranslator
       ChromeInst := new Chrome(profilePath,, "--headless", chromePath, debugPort)
     
     ; 退出时自动释放资源
-    this.page := ChromeInst.GetPage()
     OnExit(ObjBindMethod(this, "_exit"))
     
     ; 初始化，也就是先加载一次页面
-    this.page.Call("Page.navigate", {"url": "https://fanyi.youdao.com/"})
+    this.page := ChromeInst.GetPage()
+    this.page.Call("Page.navigate", {"url": "https://fanyi.youdao.com/"}, mode="async" ? false : true)
     
     ; 同步将产生阻塞直到返回结果，异步将快速返回以便用户自行处理结果
-    this._receive(mode, timeout, true)
+    this._receive(mode, timeout, "getInitResult")
     
     ; 完成初始化
     this.ready := 1
@@ -51,26 +51,22 @@ class YoudaoTranslator
     
     ; 待翻译的文字为空
     if (Trim(str, " `t`r`n`v`f")="")
-      return, this.multiLanguage.2
+      return, {Error : this.multiLanguage.2}
     
     ; 待翻译的文字超过 youdao 支持的单次最大长度
     if (StrLen(str)>5000)
-      return, this.multiLanguage.3
+      return, {Error : this.multiLanguage.3}
     
     ; 清空原文
-    while (this.page.Evaluate("document.querySelector('#inputOriginal').value;").value!="")
-    {
-      this.page.Evaluate("document.querySelector('#inputDelete').click();")
-      Sleep, 500
-    }
+    this._clearTransResult()
     
     ; 选择语言
-    if (this._convertLanguageAbbr(from, to)=this.multiLanguage.6)
-      return, this.multiLanguage.6
+    if (IsObject(this._convertLanguageAbbr(from, to)))
+      return, {Error : this.multiLanguage.6}
     
     ; 翻译
-    this.page.Call("Input.insertText", {"text": str})
-    return, this._receive(mode, timeout)
+    this.page.Call("Input.insertText", {"text": str}, mode="async" ? false : true)
+    return, this._receive(mode, timeout, "getTransResult")
   }
   
   getInitResult()
@@ -78,11 +74,9 @@ class YoudaoTranslator
     ; 页面是否加载完成
     if (this.page.Evaluate("document.readyState;").value = "complete")
       return, "OK"
-    else
-      return
   }
   
-  getResult()
+  getTransResult()
   {
     ; 获取翻译结果
     try
@@ -96,8 +90,8 @@ class YoudaoTranslator
   
   free()
   {
-    this.page.Call("Browser.close")	; 关闭浏览器(所有页面和标签)
-    this.page.Disconnect()					; 断开连接
+    this.page.Call("Browser.close",, false) ; 关闭浏览器(所有页面和标签)
+    this.page.Disconnect()                  ; 断开连接
   }
   
   _multiLanguage()
@@ -154,7 +148,7 @@ class YoudaoTranslator
                   , "zh-th":28, "th-zh":29}
         
         if (!langSel.HasKey(languageSelected))
-          return, this.multiLanguage.6
+          return, {Error : this.multiLanguage.6}
         else
           this.page.Evaluate(Format("document.querySelector('#languageSelect > li:nth-child({1}) > a').click();"
                            , langSel[languageSelected]))
@@ -162,12 +156,16 @@ class YoudaoTranslator
     }
   }
   
-  _clearResult()
+  _clearTransResult()
   {
-    this.page.Evaluate("document.querySelector('#inputDelete').click();")
+    while (this.page.Evaluate("document.querySelector('#inputOriginal').value;").value!="")
+    {
+      this.page.Evaluate("document.querySelector('#inputDelete').click();")
+      Sleep, 500
+    }
   }
   
-  _receive(mode, timeout, getInitResult:=false)
+  _receive(mode, timeout, result)
   {
     ; 异步模式直接返回
     if (mode="async")
@@ -177,21 +175,21 @@ class YoudaoTranslator
     startTime := A_TickCount
     loop
     {
-      ret := getInitResult ? this.getInitResult() : this.getResult()
+      ret := result="getInitResult" ? this.getInitResult() : this.getTransResult()
       if (ret!="")
         return, ret
       else
         Sleep, 500
       
       if ((A_TickCount-startTime)/1000 >= timeout)
-        return, this.multiLanguage.5
+        return, {Error : this.multiLanguage.5}
     }
   }
   
   _exit()
   {
     if (this.page.connected)
-      YoudaoTranslator.free()
+      this.free()
   }
   
   #IncludeAgain %A_LineFile%\..\NonNull.ahk
