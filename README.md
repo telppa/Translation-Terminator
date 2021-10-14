@@ -9,3 +9,5 @@
 ### [English Demo](https://www.autohotkey.com/boards/viewtopic.php?f=6&t=94823) 或 [中文演示](https://www.autoahk.com/archives/37113)  
   
 ![效果图](https://raw.githubusercontent.com/telppa/Translation-Terminator/main/img/1.png)  
+  
+![效果图](https://raw.githubusercontent.com/telppa/Translation-Terminator/main/img/3.gif)  
