@@ -1,14 +1,17 @@
-﻿; Chrome.ahk v1.2.3
-; Copyright GeekDude 2020
+﻿; Chrome.ahk v1.3
+; Copyright GeekDude 2021
 ; https://github.com/G33kDude/Chrome.ahk
-; 已将其更新到 GeekDude 2020.11.21 最后更新但未 Releases 的版本。
-; 修复了可能因 Chrome 打开缓慢而出错的问题（也可能只是降低了出错概率，没有全面严格测试）。
-; 修复了自动检测 chrome.exe 位置时， com 错误提示打断 "Chrome could not be found" 提示的问题。
+; 基于 GeekDude 2020.11.21 最后更新但未 Release 的版本。
+
+; 为所有可能造成死循环的地方添加了默认30秒的超时参数。
+; 修复了可能因 Chrome 打开缓慢而报错的问题。
+; 修复了找不到开始菜单中的 Chrome 快捷方式，而报无关错误的问题。
 ; 简化了 Chrome 临时用户配置文件目录的创建。
-; 同时将检测 IE 版本，因为 WebSocket 需要 IE10 以上。
-; 为了不给人造成迷惑，版本号改为了 v1.2.3。
-; 以后的人要想同步更新这个库，强烈建议使用 BCompare 之类的比较程序，比较着 GeekDude Releases 版本来。
-; 不要尝试做出一个未 Releases 版本中那样，有着 “#Include Jxon.ahk” “#Include WebSocket.ahk” 的库来。
+; 检测了 IE 版本，因为 WebSocket 需要 IE10 以上。
+; 为了不给人造成迷惑，版本号改为了 v1.3。
+
+; 以后的人要想同步更新这个库，强烈建议使用 BCompare 之类的比较程序，比较着 GeekDude Release 版本来。
+; 不要尝试做出一个未 Release 版本中那样，有着 “#Include Jxon.ahk” “#Include WebSocket.ahk” 的库来。
 ; 因为这样会有太多坑，你要么搞不定，要么会浪费很多无谓的时间！！！！！！
 
 class Chrome
@@ -85,12 +88,10 @@ class Chrome
 		this.ProfilePath := ProfilePath
 		
 		; Verify ChromePath
-		ComObjError(0)
 		if (ChromePath == "")
 			; By using winmgmts to get the path of a shortcut file we fix an edge case where the path is retreived incorrectly
 			; if using the ahk executable with a different architecture than the OS (using 32bit AHK on a 64bit OS for example)
-			 ChromePath := ComObjGet("winmgmts:").ExecQuery("Select * from Win32_ShortcutFile where Name=""" StrReplace(A_StartMenuCommon "\Programs\Google Chrome.lnk", "\", "\\") """").ItemIndex(0).Target
-		ComObjError(1)
+			 try ChromePath := ComObjGet("winmgmts:").ExecQuery("Select * from Win32_ShortcutFile where Name=""" StrReplace(A_StartMenuCommon "\Programs\Google Chrome.lnk", "\", "\\") """").ItemIndex(0).Target
 			; FileGetShortcut, %A_StartMenuCommon%\Programs\Google Chrome.lnk, ChromePath
 		if (ChromePath == "")
 			RegRead, ChromePath, HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe
@@ -136,23 +137,22 @@ class Chrome
 	*/
 	GetPageList()
 	{
-		ComObjError(0)
 		http := ComObjCreate("WinHttp.WinHttpRequest.5.1")
-		; 很容易因为 new 的时候 chrome 很久才打开造成这里出错。
-		; 所以此处将在10秒内反复尝试，直至成功或超时。
 		StartTime := A_TickCount
-		while (A_TickCount-StartTime < 10000)
+		while (A_TickCount-StartTime < 10*1000)
 		{
-			http.SetTimeouts(30000, 30000, 30000, 30000)
-			http.Open("GET", "http://127.0.0.1:" this.DebugPort "/json", true)
-			http.Send()
-			http.WaitForResponse(-1)
-			if (http.Status = 200)
-				break
-			else
-				Sleep, 1000
+			; It is easy to fail here because "new chrome()" takes a long time to execute.
+			; Therefore, it will be tried again and again within 10 seconds until it succeeds or timeout.
+			try
+			{
+				http.Open("GET", "http://127.0.0.1:" this.DebugPort "/json", true)
+				http.Send()
+				http.WaitForResponse(-1)
+				if (http.Status = 200)
+					break
+			}
+			Sleep, 50
 		}
-		ComObjError(1)
 		return this.Jxon_Load(http.responseText)
 	}
 	
@@ -165,9 +165,10 @@ class Chrome
 		Value      - The value to search for in the provided key
 		MatchMode  - What kind of search to use, such as "exact", "contains", "startswith", or "regex"
 		Index      - If multiple pages match the given criteria, which one of them to return
+		Timeout    - Maximum number of seconds to wait for the page connection
 		fnCallback - A function to be called whenever message is received from the page
 	*/
-	GetPageBy(Key, Value, MatchMode:="exact", Index:=1, fnCallback:="", fnClose:="")
+	GetPageBy(Key, Value, MatchMode:="exact", Index:=1, Timeout:=30, fnCallback:="", fnClose:="")
 	{
 		Count := 0
 		for n, PageData in this.GetPageList()
@@ -177,24 +178,24 @@ class Chrome
 			|| (MatchMode = "startswith" && InStr(PageData[Key], Value) == 1)
 			|| (MatchMode = "regex" && PageData[Key] ~= Value))
 			&& ++Count == Index)
-				return new this.Page(PageData.webSocketDebuggerUrl, fnCallback, fnClose)
+				return new this.Page(PageData.webSocketDebuggerUrl, Timeout, fnCallback, fnClose)
 		}
 	}
 	
 	/*
 		Shorthand for GetPageBy("url", Value, "startswith")
 	*/
-	GetPageByURL(Value, MatchMode:="startswith", Index:=1, fnCallback:="", fnClose:="")
+	GetPageByURL(Value, MatchMode:="startswith", Index:=1, Timeout:=30, fnCallback:="", fnClose:="")
 	{
-		return this.GetPageBy("url", Value, MatchMode, Index, fnCallback, fnClose)
+		return this.GetPageBy("url", Value, MatchMode, Index, Timeout, fnCallback, fnClose)
 	}
 	
 	/*
 		Shorthand for GetPageBy("title", Value, "startswith")
 	*/
-	GetPageByTitle(Value, MatchMode:="startswith", Index:=1, fnCallback:="", fnClose:="")
+	GetPageByTitle(Value, MatchMode:="startswith", Index:=1, Timeout:=30, fnCallback:="", fnClose:="")
 	{
-		return this.GetPageBy("title", Value, MatchMode, Index, fnCallback, fnClose)
+		return this.GetPageBy("title", Value, MatchMode, Index, Timeout, fnCallback, fnClose)
 	}
 	
 	/*
@@ -203,9 +204,9 @@ class Chrome
 		The default type to search for is "page", which is the visible area of
 		a normal Chrome tab.
 	*/
-	GetPage(Index:=1, Type:="page", fnCallback:="", fnClose:="")
+	GetPage(Index:=1, Type:="page", Timeout:=30, fnCallback:="", fnClose:="")
 	{
-		return this.GetPageBy("type", Type, "exact", Index, fnCallback, fnClose)
+		return this.GetPageBy("type", Type, "exact", Index, Timeout, fnCallback, fnClose)
 	}
 	
 	/*
@@ -219,13 +220,15 @@ class Chrome
 		
 		/*
 			wsurl      - The desired page's WebSocket URL
+			timeout    - Maximum number of seconds to wait for the page connection
 			fnCallback - A function to be called whenever message is received
 			fnClose    - A function to be called whenever the page connection is lost
 		*/
-		__New(wsurl, fnCallback:="", fnClose:="")
+		__New(wsurl, timeout:=30, fnCallback:="", fnClose:="")
 		{
 			this.fnCallback := fnCallback
 			this.fnClose := fnClose
+			; Here is no waiting for a response so no need to add a timeout
 			this.BoundKeepAlive := this.Call.Bind(this, "Browser.getVersion",, False)
 			
 			; TODO: Throw exception on invalid objects
@@ -234,10 +237,17 @@ class Chrome
 			
 			wsurl := StrReplace(wsurl, "localhost", "127.0.0.1")
 			this.ws := {"base": this.WebSocket, "_Event": this.Event, "Parent": this}
-			this.ws.__New(wsurl)
+			this.ws.__New(wsurl, timeout)
 			
+			; The timeout here is perhaps duplicated with the previous line
+			StartTime := A_TickCount
 			while !this.Connected
-				Sleep, 50
+			{
+				if (A_TickCount-StartTime > timeout*1000)
+					throw Exception("Page connection timeout")
+				else
+					Sleep, 50
+			}
 		}
 		
 		/*
@@ -259,8 +269,10 @@ class Chrome
 			WaitForResponse - Whether to block until a response is received from
 				Chrome, which is necessary to receive a return value, or whether
 				to continue on with the script without waiting for a response.
+			
+			Timeout - Maximum number of seconds to wait for a response.
 		*/
-		Call(DomainAndMethod, Params:="", WaitForResponse:=True)
+		Call(DomainAndMethod, Params:="", WaitForResponse:=True, Timeout:=30)
 		{
 			if !this.Connected
 				throw Exception("Not connected to tab")
@@ -277,8 +289,14 @@ class Chrome
 			
 			; Wait for the response
 			this.responses[ID] := False
+			StartTime := A_TickCount
 			while !this.responses[ID]
-				Sleep, 50
+			{
+				if (A_TickCount-StartTime > Timeout*1000)
+					throw Exception(DomainAndMethod " response timeout")
+				else
+					Sleep, 50
+			}
 			
 			; Get the response, check if it's an error
 			response := this.responses.Delete(ID)
@@ -294,7 +312,7 @@ class Chrome
 			PageInst.Evaluate("alert(""I can't believe it's not IE!"");")
 			PageInst.Evaluate("document.getElementsByTagName('button')[0].click();")
 		*/
-		Evaluate(JS)
+		Evaluate(JS, Timeout:=30)
 		{
 			response := this.Call("Runtime.evaluate",
 			( LTrim Join
@@ -307,7 +325,7 @@ class Chrome
 				"userGesture": Chrome.Jxon_True(),
 				"awaitPromise": Chrome.Jxon_False()
 			}
-			))
+			), Timeout)
 			
 			if (response.exceptionDetails)
 				throw Exception(response.result.description, -1
@@ -322,11 +340,18 @@ class Chrome
 			
 			DesiredState - The state to wait for the page's ReadyState to match
 			Interval     - How often it should check whether the state matches
+			Timeout      - Maximum number of seconds to wait for the page's ReadyState to match
 		*/
-		WaitForLoad(DesiredState:="complete", Interval:=100)
+		WaitForLoad(DesiredState:="complete", Interval:=100, Timeout:=30)
 		{
+			StartTime := A_TickCount
 			while this.Evaluate("document.readyState").value != DesiredState
-				Sleep, Interval
+			{
+				if (A_TickCount-StartTime > Timeout*1000)
+					throw Exception("Wait for page " DesiredState " timeout")
+				else
+					Sleep, Interval
+			}
 		}
 		
 		/*
@@ -389,14 +414,14 @@ class Chrome
 		
 		class WebSocket
 		{
-			__New(WS_URL)
+			__New(WS_URL, Timeout:=30)
 			{
 				static wb
 				
 				; Need IE10+
 				RegRead, OutputVar, HKLM, Software\Microsoft\Internet Explorer, svcVersion
 				if (StrSplit(OutputVar, ".")[1] < 10)
-					throw Exception("Need IE10+")
+					throw Exception("Connect to a WebSocket server need IE10+")
 				
 				; Create an IE instance
 				Gui, +hWndhOld
@@ -408,8 +433,14 @@ class Chrome
 				; Write an appropriate document
 				WB.Navigate("about:<!DOCTYPE html><meta http-equiv='X-UA-Compatible'"
 				. "content='IE=edge'><body></body>")
+				StartTime := A_TickCount
 				while (WB.ReadyState < 4)
-					sleep, 50
+				{
+					if (A_TickCount-StartTime > Timeout*1000)
+						throw Exception("Connect to a WebSocket server timeout")
+					else
+						Sleep, 50
+				}
 				this.document := WB.document
 				
 				; Add our handlers to the JavaScript namespace
@@ -418,6 +449,7 @@ class Chrome
 				this.document.parentWindow.ahk_ws_url := WS_URL
 				
 				; Add some JavaScript to the page to open a socket
+				; Here is the JS code, no need to add a timeout
 				Script := this.document.createElement("script")
 				Script.text := "ws = new WebSocket(ahk_ws_url);`n"
 				. "ws.onopen = function(event){ ahk_event('Open', event); };`n"
