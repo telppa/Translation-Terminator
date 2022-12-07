@@ -14,10 +14,13 @@ Feature:
       DetectHiddenWindows, %Prev_DetectHiddenWindows%
       SetTitleMatchMode, %Prev_TitleMatchMode%
     }
-
+  
 Todo:
   设置最佳显示位置 鼠标位置+窗口宽>屏幕宽 则用屏幕宽 避免超出屏幕
+  --headless 下不能使用 --user-data-dir=
+  --headless 下临时文件乱跑
   历史记忆
+  
 已知问题:
   当按住主窗口标题栏并拖动它超出屏幕最顶端，然后松手。
   此时主窗口会自动回落到屏幕范围内，子窗口1号会跟随移动，但子窗口2号不会跟随移动。
@@ -81,7 +84,7 @@ CreatMain:
   
   Gui, Add, CheckBox, x365 y224 w140 h23 vMerge Checked, % Lang.9
   Gui, Add, Button, x16 y264 w450 h40 vbtnTranslate gTranslate +Disabled, % Lang.6
-  Gui, Show, %isHide% w482 h320, % Lang.1 " ver. 1.3"
+  Gui, Show, %isHide% w482 h320, % Lang.1 " v1.3"
 return
 
 CreatSub:
