@@ -1,5 +1,5 @@
 ﻿; https://fanyi.baidu.com/
-; version: 2021.10.12
+; version: 2022.12.07
 
 class BaiduTranslator
 {
@@ -39,7 +39,7 @@ class BaiduTranslator
     this.ready := 1
   }
   
-  translate(str, from:="", to:="", mode:="sync", timeout:=30)
+  translate(str, from:="auto", to:="zh", mode:="sync", timeout:=30)
   {
     ; 没有初始化则初始化一遍
     if (this.ready="")
@@ -47,15 +47,21 @@ class BaiduTranslator
     
     ; 已经开始初始化则等待其完成
     while (this.ready=0)
-      Sleep, 500
+      Sleep 500
     
     ; 待翻译的文字为空
     if (Trim(str, " `t`r`n`v`f")="")
-      return, {Error : this.multiLanguage.2}
+      return {Error : this.multiLanguage.2}
+    
+    ; 将换行符统一为 `r`n
+    ; 这样才能让换行数量在翻译前后保持一致
+    str := StrReplace(str, "`r`n", "`n")
+    str := StrReplace(str, "`r", "`n")
+    str := StrReplace(str, "`n", "`r`n")
     
     ; 待翻译的文字超过 baidu 支持的单次最大长度
     if (StrLen(str)>5000)
-      return, {Error : this.multiLanguage.3}
+      return {Error : this.multiLanguage.3}
     
     ; 清空上次翻译结果，避免获取到上次的结果
     this._clearTransResult()
@@ -66,27 +72,28 @@ class BaiduTranslator
     
     ; url 超过最大长度
     if (StrLen(url)>8182)
-      return, {Error : this.multiLanguage.4}
+      return {Error : this.multiLanguage.4}
     
     ; 翻译
     this.page.Call("Page.navigate", {"url": url}, mode="async" ? false : true)
-    return, this._receive(mode, timeout, "getTransResult")
+    return this._receive(mode, timeout, "getTransResult")
   }
   
   getInitResult()
   {
-    return, this.getTransResult()
+    return this.getTransResult()
   }
   
   getTransResult()
   {
     ; 获取翻译结果
     try
-      str := this.page.Evaluate("document.querySelector('#main-outer > div > div > div.translate-wrap > div.translateio > div.translate-main.clearfix > div.trans-right > div > div > div.output-bd').innerText;").value
+      str := this.page.Evaluate("document.querySelector('div.output-bd').innerText;").value
     
     ; 去掉空白符后不为空则返回原文
     if (Trim(str, " `t`r`n`v`f")!="")
-      return, str
+      ; baidu 会返回多余的换行
+      return StrReplace(str, "`n`n", "`n")
   }
   
   free()
@@ -121,20 +128,20 @@ class BaiduTranslator
   
   _convertLanguageAbbr(from, to)
   {
-    this.NonNull(from, "en"), this.NonNull(to, "zh")
+    ; 由于 baidu 支持的语言实在太多，所以不进行语种是否支持的判断
     ; 除 ro 被罗姆语占用外，其它均是无冲突转换
-    dict     := {et:"est", bg:"bul", da:"dan", fr:"fra", fi:"fin"
-               , ko:"kor", lv:"lav", lt:"lit", ro:"rom", ja:"jp"
-               , sv:"swe", sl:"slo", es:"spa"}
+    dict     := {ar:"ara", uk:"ukr", vi:"vie", et:"est", bg:"bul"
+               , da:"dan", fr:"fra", fi:"fin", ko:"kor", lv:"lav"
+               , lt:"lit", ro:"rom", ja:"jp",  sv:"swe", sl:"slo", es:"spa"}
     ret      := {}
     ret.from := dict.HasKey(from) ? dict[from] : from
     ret.to   := dict.HasKey(to)   ? dict[to]   : to
-    return, ret
+    return ret
   }
   
   _clearTransResult()
   {
-    this.page.Evaluate("document.querySelector('#main-outer > div > div > div.translate-wrap > div.translateio > div.translate-main.clearfix > div.trans-right > div > div > div.output-bd').innerText='';")
+    this.page.Evaluate("document.querySelector('div.output-bd').innerText='';")
   }
   
   _receive(mode, timeout, result)
@@ -149,12 +156,12 @@ class BaiduTranslator
     {
       ret := result="getInitResult" ? this.getInitResult() : this.getTransResult()
       if (ret!="")
-        return, ret
+        return ret
       else
-        Sleep, 500
+        Sleep 500
       
       if ((A_TickCount-startTime)/1000 >= timeout)
-        return, {Error : this.multiLanguage.5}
+        return {Error : this.multiLanguage.5}
     }
   }
   
@@ -164,7 +171,6 @@ class BaiduTranslator
       this.free()
   }
   
-  #IncludeAgain %A_LineFile%\..\NonNull.ahk
   #IncludeAgain %A_LineFile%\..\UriEncode.ahk
 }
 

@@ -1,5 +1,5 @@
 ﻿; https://www.deepl.com/translator
-; version: 2021.10.12
+; version: 2022.12.07
 
 class DeepLTranslator
 {
@@ -39,7 +39,7 @@ class DeepLTranslator
     this.ready := 1
   }
   
-  translate(str, from:="", to:="", mode:="sync", timeout:=30)
+  translate(str, from:="auto", to:="zh", mode:="sync", timeout:=30)
   {
     ; 没有初始化则初始化一遍
     if (this.ready="")
@@ -47,33 +47,45 @@ class DeepLTranslator
     
     ; 已经开始初始化则等待其完成
     while (this.ready=0)
-      Sleep, 500
+      Sleep 500
     
     ; 待翻译的文字为空
     if (Trim(str, " `t`r`n`v`f")="")
-      return, {Error : this.multiLanguage.2}
+      return {Error : this.multiLanguage.2}
     
     ; 待翻译的文字超过 deepl 支持的单次最大长度
     if (StrLen(str)>5000)
-      return, {Error : this.multiLanguage.3}
+      return {Error : this.multiLanguage.3}
+    
+    ; 源语言与目标语言同为中文，则修改目标语言为英文
+    if (from="auto" and to="zh")
+    {
+      RegExReplace(str, "[一-龟]",, Chinese_Characters_Len)
+      if (Chinese_Characters_Len/StrLen(str) > 0.6)
+        to := "en"
+    }
+    
+    ; 检测语种是否在支持范围内
+    l := this._convertLanguageAbbr(from, to)
+    if (l.Error)
+      return {Error : this.multiLanguage.6}
     
     ; 构造 url
-    l := this._convertLanguageAbbr(from, to)
     ; DeepL 需要额外将转义后的 / 再次转义为 \/ 即 %2F 转为 %5C%2F
     url := Format("https://www.deepl.com/translator#{1}/{2}/{3}", l.from, l.to, StrReplace(this.UriEncode(str), "%2F", "%5C%2F"))
     
     ; url 超过最大长度
     if (StrLen(url)>8182)
-      return, {Error : this.multiLanguage.4}
+      return {Error : this.multiLanguage.4}
     
     ; 翻译
     this.page.Call("Page.navigate", {"url": url}, mode="async" ? false : true)
-    return, this._receive(mode, timeout, "getTransResult")
+    return this._receive(mode, timeout, "getTransResult")
   }
   
   getInitResult()
   {
-    return, this.getTransResult()
+    return this.getTransResult()
   }
   
   getTransResult()
@@ -84,7 +96,7 @@ class DeepLTranslator
     
     ; 去掉空白符后不为空则返回原文
     if (Trim(str, " `t`r`n`v`f")!="")
-      return, str
+      return str
   }
   
   free()
@@ -119,12 +131,33 @@ class DeepLTranslator
   
   _convertLanguageAbbr(from, to)
   {
-    this.NonNull(from, "en"), this.NonNull(to, "zh")
-    dict     := {}
-    ret      := {}
-    ret.from := dict.HasKey(from) ? dict[from] : from
-    ret.to   := dict.HasKey(to)   ? dict[to]   : to
-    return, ret
+    /*
+      检测源语言     捷克语           乌克兰语
+      爱沙尼亚语     拉脱维亚语       西班牙语
+      保加利亚语     立陶宛语         希腊语
+      波兰语         罗马尼亚语       匈牙利语
+      丹麦语         葡萄牙语         意大利语
+      德语           日语             印尼语
+      俄语           瑞典语           英语
+      法语           斯洛伐克语       中文
+      芬兰语         斯洛文尼亚语     
+      荷兰语         土耳其语         
+    */
+    dict := { auto:"auto",     cs:"cs",     uk:"uk"
+            , et:"et",         lv:"lv",     es:"es"
+            , bg:"bg",         lt:"lt",     el:"el"
+            , pl:"pl",         ro:"ro",     hu:"hu"
+            , da:"da",         pt:"pt",     it:"it"
+            , de:"de",         ja:"ja",     id:"id"
+            , ru:"ru",         sv:"sv",     en:"en"
+            , fr:"fr",         sk:"sk",     zh:"zh"
+            , fi:"fi",         sl:"sl"
+            , nl:"nl",         tr:"tr" }
+    
+    if (!dict.HasKey(from) or !dict.HasKey(to))
+      return {Error : this.multiLanguage.6}
+    else
+      return {from:dict[from], to:dict[to]}
   }
   
   _clearTransResult()
@@ -144,12 +177,12 @@ class DeepLTranslator
     {
       ret := result="getInitResult" ? this.getInitResult() : this.getTransResult()
       if (ret!="")
-        return, ret
+        return ret
       else
-        Sleep, 500
+        Sleep 500
       
       if ((A_TickCount-startTime)/1000 >= timeout)
-        return, {Error : this.multiLanguage.5}
+        return {Error : this.multiLanguage.5}
     }
   }
   
@@ -159,7 +192,6 @@ class DeepLTranslator
       this.free()
   }
   
-  #IncludeAgain %A_LineFile%\..\NonNull.ahk
   #IncludeAgain %A_LineFile%\..\UriEncode.ahk
 }
 

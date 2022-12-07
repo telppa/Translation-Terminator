@@ -13,11 +13,12 @@ Language abbreviations may be different in different libraries.
 
 However, the following common languages always use the same abbreviations in different libraries.
 
+阿拉伯语     ar  Arabic
 爱沙尼亚语   et  Estonian
 保加利亚语   bg  Bulgarian
 波兰语       pl  Polish
 丹麦语       da  Danish
-德语语       de  German
+德语         de  German
 俄语         ru  Russian
 法语         fr  French
 芬兰语       fi  Finnish
@@ -32,11 +33,16 @@ However, the following common languages always use the same abbreviations in dif
 瑞典语       sv  Swedish
 斯洛伐克语   sk  Slovak
 斯洛文尼亚语 sl  Slovenian
+泰语         th  Thai
+土耳其语     tr  Turkish
+乌克兰语     uk  Ukrainian
 西班牙语     es  Spanish
 希腊语       el  Greek
 匈牙利语     hu  Hungarian
 意大利语     it  Italian
+印尼语       id  Indonesian
 英语         en  English
+越南语       vi  Vietnamese
 中文         zh  Chinese
 
 */

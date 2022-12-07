@@ -1,5 +1,5 @@
 ﻿; https://fanyi.sogou.com/
-; version: 2021.10.12
+; version: 2022.12.07
 
 class SogouTranslator
 {
@@ -40,7 +40,7 @@ class SogouTranslator
     this.ready := 1
   }
   
-  translate(str, from:="", to:="", mode:="sync", timeout:=30)
+  translate(str, from:="auto", to:="zh", mode:="sync", timeout:=30)
   {
     ; 没有初始化则初始化一遍
     if (this.ready="")
@@ -48,32 +48,36 @@ class SogouTranslator
     
     ; 已经开始初始化则等待其完成
     while (this.ready=0)
-      Sleep, 500
+      Sleep 500
     
     ; 待翻译的文字为空
     if (Trim(str, " `t`r`n`v`f")="")
-      return, {Error : this.multiLanguage.2}
+      return {Error : this.multiLanguage.2}
     
     ; 待翻译的文字超过 sogou 支持的单次最大长度
     if (StrLen(str)>5000)
-      return, {Error : this.multiLanguage.3}
+      return {Error : this.multiLanguage.3}
+    
+    ; 检测语种是否在支持范围内
+    l := this._convertLanguageAbbr(from, to)
+    if (l.Error)
+      return {Error : this.multiLanguage.6}
     
     ; 构造 url
-    l := this._convertLanguageAbbr(from, to)
     url := Format("https://fanyi.sogou.com/text?keyword={1}&transfrom={2}&transto={3}&model=general", this.UriEncode(str), l.from, l.to)
     
     ; url 超过最大长度
     if (StrLen(url)>8182)
-      return, {Error : this.multiLanguage.4}
+      return {Error : this.multiLanguage.4}
     
     ; 翻译
     this.page.Call("Page.navigate", {"url": url}, mode="async" ? false : true)
-    return, this._receive(mode, timeout, "getTransResult")
+    return this._receive(mode, timeout, "getTransResult")
   }
   
   getInitResult()
   {
-    return, this.getTransResult()
+    return this.getTransResult()
   }
   
   getTransResult()
@@ -84,7 +88,7 @@ class SogouTranslator
     
     ; 去掉空白符后不为空则返回原文
     if (Trim(str, " `t`r`n`v`f")!="")
-      return, str
+      return str
   }
   
   free()
@@ -119,12 +123,29 @@ class SogouTranslator
   
   _convertLanguageAbbr(from, to)
   {
-    this.NonNull(from, "en"), this.NonNull(to, "zh")
-    dict     := {zh:"zh-CHS"}
-    ret      := {}
-    ret.from := dict.HasKey(from) ? dict[from] : from
-    ret.to   := dict.HasKey(to)   ? dict[to]   : to
-    return, ret
+    /*
+      自动检测
+      阿拉伯语         葡萄牙语
+      波兰语           日语  瑞典语
+      丹麦语  德语     泰语  土耳其语
+      俄语             西班牙语  匈牙利语
+      法语  芬兰语     英语  意大利语  越南语
+      韩语  荷兰语     中文
+      捷克语
+    */
+    dict := { auto:"auto"
+            , ar:"ar",              pt:"pt"
+            , pl:"pl",              ja:"ja",  sv:"sv"
+            , da:"da",  de:"de",    th:"th",  tr:"tr"
+            , ru:"ru",              es:"es",  hu:"hu"
+            , fr:"fr",  fi:"fi",    en:"en",  it:"it",  vi:"vi"
+            , ko:"ko",  nl:"nl",    zh:"zh-CHS"
+            , cs:"cs" }
+    
+    if (!dict.HasKey(from) or !dict.HasKey(to))
+      return {Error : this.multiLanguage.6}
+    else
+      return {from:dict[from], to:dict[to]}
   }
   
   _clearTransResult()
@@ -144,12 +165,12 @@ class SogouTranslator
     {
       ret := result="getInitResult" ? this.getInitResult() : this.getTransResult()
       if (ret!="")
-        return, ret
+        return ret
       else
-        Sleep, 500
+        Sleep 500
       
       if ((A_TickCount-startTime)/1000 >= timeout)
-        return, {Error : this.multiLanguage.5}
+        return {Error : this.multiLanguage.5}
     }
   }
   
@@ -159,7 +180,6 @@ class SogouTranslator
       this.free()
   }
   
-  #IncludeAgain %A_LineFile%\..\NonNull.ahk
   #IncludeAgain %A_LineFile%\..\UriEncode.ahk
 }
 

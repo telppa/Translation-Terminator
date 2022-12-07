@@ -2,29 +2,37 @@
 Feature:
   支持 /hide 参数启动
   支持外部呼叫（本翻译器运行时，在自己程序中使用以下代码即可呼叫它翻译）
+  注意：当本翻译器使用管理员权限启动后，呼叫聚合翻译器() 必须同样使用管理员权限
     呼叫聚合翻译器("我爱苹果")
     呼叫聚合翻译器(Text)
     {
       Prev_DetectHiddenWindows := A_DetectHiddenWindows
+      Prev_TitleMatchMode := A_TitleMatchMode
       DetectHiddenWindows, On
+      SetTitleMatchMode, 1
       ControlSetText, Edit2, %Text%, 聚合翻译器 ahk_class AutoHotkeyGUI
       DetectHiddenWindows, %Prev_DetectHiddenWindows%
+      SetTitleMatchMode, %Prev_TitleMatchMode%
     }
 
 Todo:
-  文字自动合并段落
+  设置最佳显示位置 鼠标位置+窗口宽>屏幕宽 则用屏幕宽 避免超出屏幕
   历史记忆
+已知问题:
+  当按住主窗口标题栏并拖动它超出屏幕最顶端，然后松手。
+  此时主窗口会自动回落到屏幕范围内，子窗口1号会跟随移动，但子窗口2号不会跟随移动。
 */
 
 #SingleInstance Ignore
 #NoEnv
 SetBatchLines, -1
+SetWorkingDir, %A_ScriptDir%
 
 Init:
   ; 不要把 chromePath 造为超级全局变量，会污染到库中的同名变量
   chromePath := "Chrome\chrome.exe"
   
-  global Lang, Translators, hMain, Original, OuterOriginal, btnTranslate
+  global Translators, Original, OuterOriginal, btnTranslate
   
   Lang := MultiLanguage()
   
@@ -37,6 +45,7 @@ Init:
   gosub, CreatSub
   
   OnMessage(0x3, "WM_MOVE")
+  OnMessage(536, "OnPBMsg")  ; WM_POWERBROADCAST 从睡眠中醒来则重启
   
   ShowOrHideSub("", "", "", "")
 return
@@ -46,9 +55,11 @@ CreatMain:
     isHide := "Hide"
   
   Menu, Tray, NoStandard
+  Menu, Tray, Icon, icon.png
   Menu, Tray, Add, % Lang.2, MenuHandler
   Menu, Tray, Add, % Lang.3, MenuHandler
   Menu, Tray, Add, % Lang.4, MenuHandler
+  Menu, Tray, Add, % Lang.5, MenuHandler
   Menu, Tray, Default, % Lang.2
   
   Gui, +HwndhMain
@@ -56,19 +67,21 @@ CreatMain:
   
   Gui, Add, Edit, x16 y16 w450 h150 vOriginal +Disabled
   Gui, Add, Edit, x0 y0 w0 h0 vOuterOriginal gOuterCallHandler  ; 隐藏控件，用于接收外部调用
+  Gui, Add, Edit, x0 y0 w0 h0 vMergeOriginal                    ; 隐藏控件，用于记录合并段落前的原文
   
   Gui, Add, CheckBox, x16 y184 w60 h23 vDeepL gShowOrHideSub Checked, % Lang.81
   Gui, Add, CheckBox, x88 y184 w60 h23 vSogou gShowOrHideSub, % Lang.82
   Gui, Add, CheckBox, x160 y184 w60 h23 vBaidu gShowOrHideSub, % Lang.83
   Gui, Add, CheckBox, x232 y184 w60 h23 vYoudao gShowOrHideSub Checked, % Lang.84
   
-  Gui, Add, Text, x16 y224 w60 h23 +0x200, % Lang.6
-  Gui, Add, ComboBox, x80 y224 w120 +Disabled, en||
-  Gui, Add, Text, x280 y224 w60 h23 +0x200, % Lang.7
-  Gui, Add, ComboBox, x344 y224 w120 +Disabled, zh||
+  Gui, Add, Text, x16 y224 w60 h23 +0x200, % Lang.7
+  Gui, Add, ComboBox, x80 y224 w80 vFrom, % Lang.31
+  Gui, Add, Text, x180 y224 w60 h23 +0x200, % Lang.8
+  Gui, Add, ComboBox, x244 y224 w80 vTo, % Lang.32
   
-  Gui, Add, Button, x16 y264 w450 h40 vbtnTranslate gTranslate +Disabled, % Lang.5
-  Gui, Show, %isHide% w482 h320, % Lang.1 " ver. 1.0"
+  Gui, Add, CheckBox, x365 y224 w140 h23 vMerge Checked, % Lang.9
+  Gui, Add, Button, x16 y264 w450 h40 vbtnTranslate gTranslate +Disabled, % Lang.6
+  Gui, Show, %isHide% w482 h320, % Lang.1 " ver. 1.3"
 return
 
 CreatSub:
@@ -90,16 +103,20 @@ MultiLanguage()
     ret.1  := "聚合翻译器"
     ret.2  := "显示"
     ret.3  := "隐藏"
-    ret.4  := "退出"
-    ret.5  := "翻译"
-    ret.6  := "源语言："
-    ret.7  := "目标语言："
+    ret.4    := "重启"
+    ret.5    := "退出"
+    ret.6    := "翻译"
+    ret.7    := "源语言："
+    ret.8    := "目标语言："
+    ret.9    := "自动合并段落"
     ret.21 := "正在初始化..."
     ret.22 := "初始化失败，请重试。"
     ret.23 := "初始化成功。"
     ret.24 := "翻译中..."
     ret.25 := "错误 ： "
     ret.26 := "翻译失败，请重试。"
+    ret.31  := "自动检测||中文|英语|日语|韩语|德语|法语|俄语|阿拉伯语|爱沙尼亚语|保加利亚语|波兰语|丹麦语|芬兰语|荷兰语|捷克语|拉脱维亚语|立陶宛语|罗马尼亚语|葡萄牙语|瑞典语|斯洛伐克语|斯洛文尼亚语|泰语|土耳其语|乌克兰语|西班牙语|希腊语|匈牙利语|意大利语|印尼语|越南语"
+    ret.32  := "中文||英语|日语|韩语|德语|法语|俄语|阿拉伯语|爱沙尼亚语|保加利亚语|波兰语|丹麦语|芬兰语|荷兰语|捷克语|拉脱维亚语|立陶宛语|罗马尼亚语|葡萄牙语|瑞典语|斯洛伐克语|斯洛文尼亚语|泰语|土耳其语|乌克兰语|西班牙语|希腊语|匈牙利语|意大利语|印尼语|越南语"
     ret.81 := "DeepL"
     ret.82 := "搜狗"
     ret.83 := "百度"
@@ -110,16 +127,20 @@ MultiLanguage()
     ret.1  := "Aggregate Translator"
     ret.2  := "Show"
     ret.3  := "Hide"
-    ret.4  := "Exit"
-    ret.5  := "Translate"
-    ret.6  := "From:"
-    ret.7  := "To:"
+    ret.4  := "Reload"
+    ret.5  := "Exit"
+    ret.6  := "Translate"
+    ret.7  := "From:"
+    ret.8  := "To:"
+    ret.9  := "Merge Paragraph"
     ret.21 := "Initializing..."
     ret.22 := "Initialization failed, please try again."
     ret.23 := "Initialization succeeded."
     ret.24 := "Translating..."
     ret.25 := "ERROR : "
     ret.26 := "Translation failed, please try again."
+    ret.31 := "auto||zh|en|ja|ko|de|fr|ru"
+    ret.32 := "zh||en|ja|ko|de|fr|ru"
     ret.81 := "DeepL"
     ret.82 := "Sogou"
     ret.83 := "Baidu"
@@ -131,6 +152,7 @@ MultiLanguage()
 
 CalculatePos(Margin)
 {
+  global hMain
   static SubHeight
   
   Prev_DetectHiddenWindows := A_DetectHiddenWindows
@@ -161,7 +183,7 @@ CalculatePos(Margin)
 ; 不要在此函数中使用 Critical ，会导致启动 chrome 变得很卡 
 ShowOrHideSub(ControlHwnd, GuiEvent, EventInfo, ErrLevel:="")
 {
-  global chromePath
+  global hMain, Lang, chromePath
   
   WinGetTitle, isMainShow, ahk_id %hMain%
   isMainHide := isMainShow ? "" : "Hide"
@@ -218,6 +240,7 @@ ShowOrHideSub(ControlHwnd, GuiEvent, EventInfo, ErrLevel:="")
 
 CheckInit()
 {
+  global Lang
   initCount1:=0, initCount0:=0
   for k, v in Translators
   {
@@ -278,27 +301,39 @@ CheckInit()
 
 Translate(ControlHwnd, GuiEvent, EventInfo, ErrLevel:="")
 {
+  global Lang, From, To
   Gui, Submit, NoHide
   
+  GuiControlGet, CheckBoxState, , Merge
+  if (CheckBoxState)
+  {
+    for k, v in Paragraph.merge(Original)
+      OriginalMerged.=v "`r`n`r`n"
+    Original := RTrim(OriginalMerged, "`r`n")
+    GuiControl, , Original, %Original%
+  }
   for k, v in Translators
   {
     if (v.initState=1)
     {
       GuiControl, %k%:, %k%Edit, % Lang.24
       
+      dict := { 自动检测:"auto", 阿拉伯语:"ar",   爱沙尼亚语:"et"
+              , 保加利亚语:"bg", 波兰语:"pl",     丹麦语:"da"
+              , 德语:"de",       俄语:"ru",       法语:"fr"
+              , 芬兰语:"fi",     韩语:"ko",       荷兰语:"nl"
+              , 捷克语:"cs",     拉脱维亚语:"lv", 立陶宛语:"lt"
+              , 罗马尼亚语:"ro", 葡萄牙语:"pt",   日语:"ja"
+              , 瑞典语:"sv",     斯洛伐克语:"sk", 斯洛文尼亚语:"sl"
+              , 泰语:"th",       土耳其语:"tr",   乌克兰语:"uk"
+              , 西班牙语:"es",   希腊语:"el",     匈牙利语:"hu"
+              , 意大利语:"it",   印尼语:"id",     英语:"en"
+              , 越南语:"vi",     中文:"zh"}
+      From := dict.HasKey(From) ? dict[From] : From
+      To   := dict.HasKey(To)   ? dict[To]   : To
       Translator := k "Translator"
-      RegExReplace(Original, "[一-龟]",, Chinese_Characters_Len)               ; 中文
-      RegExReplace(Original, "[\x{0800}-\x{4e00}]",, Japanese_Characters_Len)  ; 日文
-      RegExReplace(Original, "[\x{ac00}-\x{d7ff}]",, Korean_Characters_Len)    ; 韩文
       
-      if (Chinese_Characters_Len/StrLen(Original) > 0.6)
-        ret := %Translator%.translate(Original, "zh", "en", "async")
-      else if (Japanese_Characters_Len/StrLen(Original) > 0.5)
-        ret := %Translator%.translate(Original, "ja", "zh", "async")
-      else if (Korean_Characters_Len/StrLen(Original) > 0.5)
-        ret := %Translator%.translate(Original, "ko", "zh", "async")
-      else
-        ret := %Translator%.translate(Original, "en", "zh", "async")
+      ret := %Translator%.translate(Original, From, To, "async")
       
       if (ret.Error)
       {
@@ -319,6 +354,7 @@ Translate(ControlHwnd, GuiEvent, EventInfo, ErrLevel:="")
 
 CheckTrans()
 {
+  global Lang
   resultCount0 := 0
   for k, v in Translators
     if (v.resultState=0)
@@ -377,7 +413,9 @@ MenuHandler:
   if (A_ThisMenuItem=Lang.3)  ; 托盘按钮 - 隐藏
     HideAll()
   
-  if (A_ThisMenuItem=Lang.4)  ; 托盘按钮 - 退出
+  if (A_ThisMenuItem=Lang.4)  ; 托盘按钮 - 重启
+    Reload
+  if (A_ThisMenuItem=Lang.5)  ; 托盘按钮 - 退出
     ExitApp
 return
 
@@ -419,8 +457,23 @@ WM_MOVE()
   return
 }
 
+OnPBMsg(wParam, lParam, msg, hwnd)
+{
+  switch, wParam
+  {
+    ; PBT_APMRESUMECRITICAL PBT_APMRESUMESUSPEND PBT_APMRESUMEAUTOMATIC
+    case 6,7,18:
+      SetTimer, Reload, -1000
+  }
+  ; Must return True after message is processed
+  return, true
+  Reload:
+    Run "%A_AhkPath%" /restart "%A_ScriptFullPath%" /hide
+  return
+}
 #Include <NonNull>
 #Include <DeepLTranslator>
 #Include <SogouTranslator>
 #Include <BaiduTranslator>
 #Include <YoudaoTranslator>
+#Include <Paragraph>

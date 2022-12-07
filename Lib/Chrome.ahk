@@ -1,7 +1,12 @@
-﻿; Chrome.ahk v1.3
+﻿; Chrome.ahk v1.3.1
 ; Copyright GeekDude 2021
 ; https://github.com/G33kDude/Chrome.ahk
 ; 基于 GeekDude 2020.11.21 最后更新但未 Release 的版本。
+; pageinst.call() 支持的参数与命令行支持的参数
+; https://chromedevtools.github.io/devtools-protocol/tot/Browser/
+; https://peter.sh/experiments/chromium-command-line-switches/
+; 注意事项：
+; 相同的 ProfilePath ，无法指定不同的 DebugPort ，会被 Chrome 自动修改为相同的 DebugPort 。
 
 ; 为所有可能造成死循环的地方添加了默认30秒的超时参数。
 ; 修复了可能因 Chrome 打开缓慢而报错的问题。
@@ -236,6 +241,8 @@ class Chrome
 				wsurl := wsurl.webSocketDebuggerUrl
 			
 			wsurl := StrReplace(wsurl, "localhost", "127.0.0.1")
+			RegExMatch(wsurl, "page/(.+)", targetId)
+			this.targetId := targetId1
 			this.ws := {"base": this.WebSocket, "_Event": this.Event, "Parent": this}
 			this.ws.__New(wsurl, timeout)
 			

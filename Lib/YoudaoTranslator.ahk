@@ -1,5 +1,5 @@
 ﻿; https://fanyi.youdao.com/
-; version: 2021.10.12
+; version: 2022.12.07
 
 class YoudaoTranslator
 {
@@ -30,7 +30,7 @@ class YoudaoTranslator
     
     ; 初始化，也就是先加载一次页面
     this.page := ChromeInst.GetPage()
-    this.page.Call("Page.navigate", {"url": "https://fanyi.youdao.com/"}, mode="async" ? false : true)
+    this.page.Call("Page.navigate", {"url": "https://fanyi.youdao.com/index.html#/"}, mode="async" ? false : true)
     
     ; 同步将产生阻塞直到返回结果，异步将快速返回以便用户自行处理结果
     this._receive(mode, timeout, "getInitResult")
@@ -39,7 +39,7 @@ class YoudaoTranslator
     this.ready := 1
   }
   
-  translate(str, from:="", to:="", mode:="sync", timeout:=30)
+  translate(str, from:="auto", to:="zh", mode:="sync", timeout:=30)
   {
     ; 没有初始化则初始化一遍
     if (this.ready="")
@@ -47,45 +47,51 @@ class YoudaoTranslator
     
     ; 已经开始初始化则等待其完成
     while (this.ready=0)
-      Sleep, 500
+      Sleep 500
     
     ; 待翻译的文字为空
     if (Trim(str, " `t`r`n`v`f")="")
-      return, {Error : this.multiLanguage.2}
+      return {Error : this.multiLanguage.2}
+    
+    ; 将换行符统一为 `r`n
+    ; 这样才能让换行数量在翻译前后保持一致
+    str := StrReplace(str, "`r`n", "`n")
+    str := StrReplace(str, "`r", "`n")
+    str := StrReplace(str, "`n", "`r`n")
     
     ; 待翻译的文字超过 youdao 支持的单次最大长度
     if (StrLen(str)>5000)
-      return, {Error : this.multiLanguage.3}
+      return {Error : this.multiLanguage.3}
     
     ; 清空原文
     this._clearTransResult()
     
     ; 选择语言
-    if (IsObject(this._convertLanguageAbbr(from, to)))
-      return, {Error : this.multiLanguage.6}
+    if (this._convertLanguageAbbr(from, to).Error)
+      return {Error : this.multiLanguage.6}
     
     ; 翻译
     this.page.Call("Input.insertText", {"text": str}, mode="async" ? false : true)
-    return, this._receive(mode, timeout, "getTransResult")
+    return this._receive(mode, timeout, "getTransResult")
   }
   
   getInitResult()
   {
     ; 页面是否加载完成
     if (this.page.Evaluate("document.readyState;").value = "complete")
-      return, "OK"
+      return "OK"
   }
   
   getTransResult()
   {
     ; 获取翻译结果
     try
-      str := this.page.Evaluate("document.querySelector('#transTarget').innerText;").value
+      str := this.page.Evaluate("document.querySelector('#js_fanyi_output_resultOutput').innerText;").value
     
     ; 去掉空白符后不为空则返回原文
     if (Trim(str, " `t`r`n`v`f")!="")
       ; youdao 会返回多余的换行
-      return, StrReplace(str, "`n`n", "`n")
+      return StrReplace(str, "`n`n`n", "`n")
   }
   
   free()
@@ -120,49 +126,50 @@ class YoudaoTranslator
   
   _convertLanguageAbbr(from, to)
   {
-    this.NonNull(from, "en"), this.NonNull(to, "zh")
     languageSelected := from "-" to
+    
     ; 语言发生变化，需要重新选择
     if (languageSelected!=this.languageSelected)
     {
       this.languageSelected := languageSelected
       
-      if (from="auto")
-        this.page.Evaluate("document.querySelector('#languageSelect > li.default > a').click();")
+      if (from="auto" or to="auto" or from=to)
+      {
+        this.page.Evaluate("document.querySelector('div.lang-container.lanFrom-container').click();")
+        this.page.Evaluate("document.querySelector('div.common-language-container > div > div:nth-child(1)').click();")
+      }
       else
       {
-        ; 语言排列顺序与网页显示一致
-        langSel := {"zh-en":2 , "en-zh":3
-                  , "zh-ja":4 , "ja-zh":5
-                  , "zh-ko":6 , "ko-zh":7
-                  , "zh-fr":8 , "fr-zh":9
-                  , "zh-de":10, "de-zh":11
-                  , "zh-ru":12, "ru-zh":13
-                  , "zh-es":14, "es-zh":15
-                  , "zh-pt":16, "pt-zh":17
-                  , "zh-it":18, "it-zh":19
-                  , "zh-vi":20, "vi-zh":21
-                  , "zh-id":22, "id-zh":23
-                  , "zh-ar":24, "ar-zh":25
-                  , "zh-nl":26, "nl-zh":27
-                  , "zh-th":28, "th-zh":29}
+        /*
+          阿拉伯语    德语            俄语
+          法语        韩语            荷兰语
+          葡萄牙语    日语            泰语
+          西班牙语    英语            意大利语
+          越南语      印度尼西亚语    中文
+        */
+        dict := { ar:1,     de:2,     ru:3
+                , fr:4,     ko:5,     nl:6
+                , pt:7,     ja:8,     th:9
+                , es:10,    en:11,    it:12
+                , vi:13,    id:14,    zh:15 }
         
-        if (!langSel.HasKey(languageSelected))
-          return, {Error : this.multiLanguage.6}
+        if (!dict.HasKey(from) or !dict.HasKey(to))
+          return {Error : this.multiLanguage.6}
         else
-          this.page.Evaluate(Format("document.querySelector('#languageSelect > li:nth-child({1}) > a').click();"
-                           , langSel[languageSelected]))
+        {
+          this.page.Evaluate("document.querySelector('div.lang-container.lanFrom-container').click();")
+          this.page.Evaluate(Format("document.querySelector('div.specify-language-container > div > div > div > div:nth-child({})').click();", dict[from]))
+          
+          this.page.Evaluate("document.querySelector('div.lang-container.lanTo-container').click();")
+          this.page.Evaluate(Format("document.querySelector('div.specify-language-container > div > div > div > div:nth-child({})').click();", dict[to]))
+        }
       }
     }
   }
   
   _clearTransResult()
   {
-    while (this.page.Evaluate("document.querySelector('#inputOriginal').value;").value!="")
-    {
-      this.page.Evaluate("document.querySelector('#inputDelete').click();")
-      Sleep, 500
-    }
+    try this.page.Evaluate("document.querySelector('#TextTranslate > div.source > a').click();")
   }
   
   _receive(mode, timeout, result)
@@ -177,12 +184,12 @@ class YoudaoTranslator
     {
       ret := result="getInitResult" ? this.getInitResult() : this.getTransResult()
       if (ret!="")
-        return, ret
+        return ret
       else
-        Sleep, 500
+        Sleep 500
       
       if ((A_TickCount-startTime)/1000 >= timeout)
-        return, {Error : this.multiLanguage.5}
+        return {Error : this.multiLanguage.5}
     }
   }
   
@@ -191,8 +198,6 @@ class YoudaoTranslator
     if (this.page.connected)
       this.free()
   }
-  
-  #IncludeAgain %A_LineFile%\..\NonNull.ahk
 }
 
 #Include %A_LineFile%\..\Chrome.ahk
