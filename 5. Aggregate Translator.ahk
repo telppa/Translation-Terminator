@@ -83,8 +83,9 @@ CreatMain:
   Gui, Add, ComboBox, x244 y224 w80 vTo, % Lang.32
   
   Gui, Add, CheckBox, x365 y224 w140 h23 vMerge Checked, % Lang.9
+  
   Gui, Add, Button, x16 y264 w450 h40 vbtnTranslate gTranslate +Disabled, % Lang.6
-  Gui, Show, %isHide% w482 h320, % Lang.1 " v1.3"
+  Gui, Show, %isHide% w482 h320, % Lang.1 " v1.4"
 return
 
 CreatSub:
@@ -106,20 +107,20 @@ MultiLanguage()
     ret.1  := "聚合翻译器"
     ret.2  := "显示"
     ret.3  := "隐藏"
-    ret.4    := "重启"
-    ret.5    := "退出"
-    ret.6    := "翻译"
-    ret.7    := "源语言："
-    ret.8    := "目标语言："
-    ret.9    := "自动合并段落"
+    ret.4  := "重启"
+    ret.5  := "退出"
+    ret.6  := "翻译"
+    ret.7  := "源语言："
+    ret.8  := "目标语言："
+    ret.9  := "自动合并段落"
     ret.21 := "正在初始化..."
     ret.22 := "初始化失败，请重试。"
     ret.23 := "初始化成功。"
     ret.24 := "翻译中..."
     ret.25 := "错误 ： "
     ret.26 := "翻译失败，请重试。"
-    ret.31  := "自动检测||中文|英语|日语|韩语|德语|法语|俄语|阿拉伯语|爱沙尼亚语|保加利亚语|波兰语|丹麦语|芬兰语|荷兰语|捷克语|拉脱维亚语|立陶宛语|罗马尼亚语|葡萄牙语|瑞典语|斯洛伐克语|斯洛文尼亚语|泰语|土耳其语|乌克兰语|西班牙语|希腊语|匈牙利语|意大利语|印尼语|越南语"
-    ret.32  := "中文||英语|日语|韩语|德语|法语|俄语|阿拉伯语|爱沙尼亚语|保加利亚语|波兰语|丹麦语|芬兰语|荷兰语|捷克语|拉脱维亚语|立陶宛语|罗马尼亚语|葡萄牙语|瑞典语|斯洛伐克语|斯洛文尼亚语|泰语|土耳其语|乌克兰语|西班牙语|希腊语|匈牙利语|意大利语|印尼语|越南语"
+    ret.31 := "自动检测||中文|英语|日语|韩语|德语|法语|俄语|阿拉伯语|爱沙尼亚语|保加利亚语|波兰语|丹麦语|芬兰语|荷兰语|捷克语|拉脱维亚语|立陶宛语|罗马尼亚语|葡萄牙语|瑞典语|斯洛伐克语|斯洛文尼亚语|泰语|土耳其语|乌克兰语|西班牙语|希腊语|匈牙利语|意大利语|印尼语|越南语"
+    ret.32 := "中文||英语|日语|韩语|德语|法语|俄语|阿拉伯语|爱沙尼亚语|保加利亚语|波兰语|丹麦语|芬兰语|荷兰语|捷克语|拉脱维亚语|立陶宛语|罗马尼亚语|葡萄牙语|瑞典语|斯洛伐克语|斯洛文尼亚语|泰语|土耳其语|乌克兰语|西班牙语|希腊语|匈牙利语|意大利语|印尼语|越南语"
     ret.81 := "DeepL"
     ret.82 := "搜狗"
     ret.83 := "百度"
@@ -244,6 +245,7 @@ ShowOrHideSub(ControlHwnd, GuiEvent, EventInfo, ErrLevel:="")
 CheckInit()
 {
   global Lang
+  
   initCount1:=0, initCount0:=0
   for k, v in Translators
   {
@@ -305,6 +307,7 @@ CheckInit()
 Translate(ControlHwnd, GuiEvent, EventInfo, ErrLevel:="")
 {
   global Lang, From, To
+  
   Gui, Submit, NoHide
   
   GuiControlGet, CheckBoxState, , Merge
@@ -312,9 +315,11 @@ Translate(ControlHwnd, GuiEvent, EventInfo, ErrLevel:="")
   {
     for k, v in Paragraph.merge(Original)
       OriginalMerged.=v "`r`n`r`n"
+    
     Original := RTrim(OriginalMerged, "`r`n")
     GuiControl, , Original, %Original%
   }
+  
   for k, v in Translators
   {
     if (v.initState=1)
@@ -334,8 +339,8 @@ Translate(ControlHwnd, GuiEvent, EventInfo, ErrLevel:="")
               , 越南语:"vi",     中文:"zh"}
       From := dict.HasKey(From) ? dict[From] : From
       To   := dict.HasKey(To)   ? dict[To]   : To
-      Translator := k "Translator"
       
+      Translator := k "Translator"
       ret := %Translator%.translate(Original, From, To, "async")
       
       if (ret.Error)
@@ -358,6 +363,7 @@ Translate(ControlHwnd, GuiEvent, EventInfo, ErrLevel:="")
 CheckTrans()
 {
   global Lang
+  
   resultCount0 := 0
   for k, v in Translators
     if (v.resultState=0)
@@ -418,6 +424,7 @@ MenuHandler:
   
   if (A_ThisMenuItem=Lang.4)  ; 托盘按钮 - 重启
     Reload
+  
   if (A_ThisMenuItem=Lang.5)  ; 托盘按钮 - 退出
     ExitApp
 return
@@ -468,12 +475,15 @@ OnPBMsg(wParam, lParam, msg, hwnd)
     case 6,7,18:
       SetTimer, Reload, -1000
   }
+
   ; Must return True after message is processed
   return, true
+  
   Reload:
     Run "%A_AhkPath%" /restart "%A_ScriptFullPath%" /hide
   return
 }
+
 #Include <NonNull>
 #Include <DeepLTranslator>
 #Include <SogouTranslator>
