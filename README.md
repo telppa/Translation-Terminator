@@ -10,4 +10,6 @@
   
 ![效果图](https://raw.githubusercontent.com/telppa/Translation-Terminator/main/img/1.png)  
   
+![效果图](https://raw.githubusercontent.com/telppa/Translation-Terminator/main/img/2.png)  
+  
 ![效果图](https://raw.githubusercontent.com/telppa/Translation-Terminator/main/img/3.gif)  
