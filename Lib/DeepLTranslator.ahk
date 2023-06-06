@@ -53,6 +53,12 @@ class DeepLTranslator
     if (Trim(str, " `t`r`n`v`f")="")
       return {Error : this.multiLanguage.2}
     
+    ; 将换行符统一为 `r`n
+    ; 这样才能让换行数量在翻译前后保持一致
+    str := StrReplace(str, "`r`n", "`n")
+    str := StrReplace(str, "`r", "`n")
+    str := StrReplace(str, "`n", "`r`n")
+    
     ; 待翻译的文字超过 deepl 支持的单次最大长度
     ; 这里需要注意，实际使用中会因未知原因触发 “xxxx个字符中仅3000个字符已翻译。免费注册以实现一次性翻译多达5000个字符。”
     ; 所以这里限制为3000
