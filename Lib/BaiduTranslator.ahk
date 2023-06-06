@@ -1,5 +1,5 @@
 ﻿; https://fanyi.baidu.com/
-; version: 2022.12.07
+; version: 2023.06.06
 
 class BaiduTranslator
 {
@@ -60,7 +60,7 @@ class BaiduTranslator
     str := StrReplace(str, "`n", "`r`n")
     
     ; 待翻译的文字超过 baidu 支持的单次最大长度
-    if (StrLen(str)>5000)
+    if (StrLen(str)>1000)
       return {Error : this.multiLanguage.3}
     
     ; 清空上次翻译结果，避免获取到上次的结果
@@ -92,8 +92,12 @@ class BaiduTranslator
     
     ; 去掉空白符后不为空则返回原文
     if (Trim(str, " `t`r`n`v`f")!="")
+    {
       ; baidu 会返回多余的换行
-      return StrReplace(str, "`n`n", "`n")
+      str := StrReplace(str, "`n`n", "`r")
+      str := StrReplace(str, "`n", "")
+      return StrReplace(str, "`r", "`n")
+    }
   }
   
   free()
@@ -110,8 +114,8 @@ class BaiduTranslator
     {
       l.1 := "自己先去源码里把 chrome.exe 路径设置好！"
       l.2 := "待翻译文字为空！"
-      l.3 := "待翻译文字超过最大长度！"
-      l.4 := "URL 超过最大长度！"
+      l.3 := "待翻译文字超过最大长度（1000）！"
+      l.4 := "URL 超过最大长度（8182）！"
       l.5 := "超时！"
       l.6 := "不支持此两种语言间的翻译！"
     }
@@ -119,8 +123,8 @@ class BaiduTranslator
     {
       l.1 := "Please set the chrome.exe path first!"
       l.2 := "The text to be translated is empty!"
-      l.3 := "The text to be translated is over the maximum length!"
-      l.4 := "The URL is over the maximum length!"
+      l.3 := "The text to be translated is over the maximum length(1000)!"
+      l.4 := "The URL is over the maximum length(8182)!"
       l.5 := "Timeout!"
       l.6 := "Translation between these two languages is not supported!"
     }
