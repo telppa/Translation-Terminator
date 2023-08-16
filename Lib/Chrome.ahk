@@ -1,4 +1,4 @@
-﻿; Chrome.ahk v1.3.1
+﻿; Chrome.ahk v1.3.2
 ; Copyright GeekDude 2021
 ; https://github.com/G33kDude/Chrome.ahk
 ; 基于 GeekDude 2020.11.21 最后更新但未 Release 的版本。
@@ -9,13 +9,14 @@
 
 ; 注意事项：
 ; 相同的 ProfilePath ，无法指定不同的 DebugPort ，会被 Chrome 自动修改为相同的 DebugPort 。
+; 不要在 page.Evaluate() 前加 Critical ，这会导致 Evaluate() 返回不了值，而你很难发现它出错了。
 
 ; 为所有可能造成死循环的地方添加了默认30秒的超时参数。
 ; 修复了可能因 Chrome 打开缓慢而报错的问题。
 ; 修复了找不到开始菜单中的 Chrome 快捷方式，而报无关错误的问题。
 ; 简化了 Chrome 临时用户配置文件目录的创建。
 ; 检测了 IE 版本，因为 WebSocket 需要 IE10 以上。
-; 为了不给人造成迷惑，版本号改为了 v1.3。
+; 为了不给人造成迷惑，版本号改为了 v1.3.2。
 
 ; 以后的人要想同步更新这个库，强烈建议使用 BCompare 之类的比较程序，比较着 GeekDude Release 版本来。
 ; 不要尝试做出一个未 Release 版本中那样，有着 “#Include Jxon.ahk” “#Include WebSocket.ahk” 的库来。
@@ -84,13 +85,13 @@ class Chrome
 	__New(ProfilePath:="ChromeProfile", URLs:="about:blank", Flags:="", ChromePath:="", DebugPort:="")
 	{
 		if (ProfilePath == "")
-			throw Exception("Need a profile directory")
+			throw Exception("Need a profile directory", -1)
 		; Verify ProfilePath
 		if (!InStr(FileExist(ProfilePath), "D"))
 		{
 			FileCreateDir, %ProfilePath%
 			if (ErrorLevel = 1)
-				throw Exception("Failed to create the profile directory")
+				throw Exception("Failed to create the profile directory", -1)
 		}
 		this.ProfilePath := ProfilePath
 		
@@ -98,21 +99,21 @@ class Chrome
 		if (ChromePath == "")
 			; By using winmgmts to get the path of a shortcut file we fix an edge case where the path is retreived incorrectly
 			; if using the ahk executable with a different architecture than the OS (using 32bit AHK on a 64bit OS for example)
-			 try ChromePath := ComObjGet("winmgmts:").ExecQuery("Select * from Win32_ShortcutFile where Name=""" StrReplace(A_StartMenuCommon "\Programs\Google Chrome.lnk", "\", "\\") """").ItemIndex(0).Target
+			try ChromePath := ComObjGet("winmgmts:").ExecQuery("Select * from Win32_ShortcutFile where Name=""" StrReplace(A_StartMenuCommon "\Programs\Google Chrome.lnk", "\", "\\") """").ItemIndex(0).Target
 			; FileGetShortcut, %A_StartMenuCommon%\Programs\Google Chrome.lnk, ChromePath
 		if (ChromePath == "")
 			RegRead, ChromePath, HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe
 		if !FileExist(ChromePath)
-			throw Exception("Chrome could not be found")
+			throw Exception("Chrome and Edge could not be found", -1)
 		this.ChromePath := ChromePath
 		
 		; Verify DebugPort
 		if (DebugPort != "")
 		{
 			if DebugPort is not integer
-				throw Exception("DebugPort must be a positive integer")
+				throw Exception("DebugPort must be a positive integer", -1)
 			else if (DebugPort <= 0)
-				throw Exception("DebugPort must be a positive integer")
+				throw Exception("DebugPort must be a positive integer", -1)
 			this.DebugPort := DebugPort
 		}
 		
@@ -253,7 +254,7 @@ class Chrome
 			while !this.Connected
 			{
 				if (A_TickCount-StartTime > timeout*1000)
-					throw Exception("Page connection timeout")
+					throw Exception("Page connection timeout", -1)
 				else
 					Sleep, 50
 			}
@@ -284,7 +285,7 @@ class Chrome
 		Call(DomainAndMethod, Params:="", WaitForResponse:=True, Timeout:=30)
 		{
 			if !this.Connected
-				throw Exception("Not connected to tab")
+				throw Exception("Not connected to tab", -1)
 			
 			; Use a temporary variable for ID in case more calls are made
 			; before we receive a response.
@@ -302,7 +303,7 @@ class Chrome
 			while !this.responses[ID]
 			{
 				if (A_TickCount-StartTime > Timeout*1000)
-					throw Exception(DomainAndMethod " response timeout")
+					throw Exception(DomainAndMethod " response timeout", -1)
 				else
 					Sleep, 50
 			}
@@ -310,7 +311,7 @@ class Chrome
 			; Get the response, check if it's an error
 			response := this.responses.Delete(ID)
 			if (response.error)
-				throw Exception("Chrome indicated error in response",, Chrome.Jxon_Dump(response.error))
+				throw Exception("Chrome indicated error in response", -1, Chrome.Jxon_Dump(response.error))
 			
 			return response.result
 		}
@@ -334,7 +335,7 @@ class Chrome
 				"userGesture": Chrome.Jxon_True(),
 				"awaitPromise": Chrome.Jxon_False()
 			}
-			), Timeout)
+			), , Timeout)
 			
 			if (response.exceptionDetails)
 				throw Exception(response.result.description, -1
@@ -357,7 +358,7 @@ class Chrome
 			while this.Evaluate("document.readyState").value != DesiredState
 			{
 				if (A_TickCount-StartTime > Timeout*1000)
-					throw Exception("Wait for page " DesiredState " timeout")
+					throw Exception("Wait for page " DesiredState " timeout", -1)
 				else
 					Sleep, Interval
 			}
@@ -430,7 +431,7 @@ class Chrome
 				; Need IE10+
 				RegRead, OutputVar, HKLM, Software\Microsoft\Internet Explorer, svcVersion
 				if (StrSplit(OutputVar, ".")[1] < 10)
-					throw Exception("Connect to a WebSocket server need IE10+")
+					throw Exception("Connect to a WebSocket server need IE10+", -1)
 				
 				; Create an IE instance
 				Gui, +hWndhOld
@@ -446,7 +447,7 @@ class Chrome
 				while (WB.ReadyState < 4)
 				{
 					if (A_TickCount-StartTime > Timeout*1000)
-						throw Exception("Connect to a WebSocket server timeout")
+						throw Exception("Connect to a WebSocket server timeout", -1)
 					else
 						Sleep, 50
 				}
