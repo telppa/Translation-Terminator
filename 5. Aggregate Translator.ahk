@@ -82,7 +82,7 @@ CreatMain:
   Gui, Add, Text, x180 y224 w60 h23 +0x200, % Lang.8
   Gui, Add, ComboBox, x244 y224 w80 vTo, % Lang.32
   
-  Gui, Add, CheckBox, x365 y224 w140 h23 vMerge Checked, % Lang.9
+  Gui, Add, CheckBox, x365 y224 w140 h23 vMerge, % Lang.9
   
   Gui, Add, Button, x16 y264 w450 h40 vbtnTranslate gTranslate +Disabled, % Lang.6
   Gui, Show, %isHide% w482 h320, % Lang.1 " v1.4"
