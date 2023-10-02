@@ -1,5 +1,5 @@
 ﻿; https://www.deepl.com/translator
-; version: 2023.06.06
+; version: 2023.10.02
 
 class DeepLTranslator
 {
@@ -100,7 +100,7 @@ class DeepLTranslator
   {
     ; 获取翻译结果
     try
-      str := this.page.Evaluate("document.querySelector('#panelTranslateText > div.lmt__sides_container > div.lmt__sides_wrapper > section.lmt__side_container.lmt__side_container--target > div.lmt__textarea_container > div.lmt__inner_textarea_container > d-textarea').innerText;").value
+      str := this.page.Evaluate("document.querySelector('div.relative.flex.flex-1.flex-col > d-textarea').innerText;").value
     
     ; 去掉空白符后不为空则返回原文
     if (Trim(str, " `t`r`n`v`f")!="")
@@ -152,8 +152,9 @@ class DeepLTranslator
       丹麦语         葡萄牙语         意大利语
       德语           日语             印尼语
       俄语           瑞典语           英语
-      法语           斯洛伐克语       中文
-      芬兰语         斯洛文尼亚语     
+      法语           书面挪威语       中文
+      芬兰语         斯洛伐克语       
+      韩语           斯洛文尼亚语     
       荷兰语         土耳其语         
     */
     dict := { auto:"auto",     cs:"cs",     uk:"uk"
@@ -163,8 +164,9 @@ class DeepLTranslator
             , da:"da",         pt:"pt",     it:"it"
             , de:"de",         ja:"ja",     id:"id"
             , ru:"ru",         sv:"sv",     en:"en"
-            , fr:"fr",         sk:"sk",     zh:"zh"
-            , fi:"fi",         sl:"sl"
+            , fr:"fr",         nb:"nb",     zh:"zh"
+            , fi:"fi",         sk:"sk"
+            , ko:"ko",         sl:"sl"
             , nl:"nl",         tr:"tr" }
     
     if (!dict.HasKey(from) or !dict.HasKey(to))
@@ -175,7 +177,7 @@ class DeepLTranslator
   
   _clearTransResult()
   {
-    this.page.Evaluate("document.querySelector('#panelTranslateText > div.lmt__sides_container > div.lmt__sides_wrapper > section.lmt__side_container.lmt__side_container--target > div.lmt__textarea_container > div.lmt__inner_textarea_container > d-textarea').innerText='';")
+    this.page.Evaluate("document.querySelector('d-textarea').innerText='';")
   }
   
   _receive(mode, timeout, result)
