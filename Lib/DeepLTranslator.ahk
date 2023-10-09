@@ -1,5 +1,5 @@
 ﻿; https://www.deepl.com/translator
-; version: 2023.10.08
+; version: 2023.10.09
 
 class DeepLTranslator
 {
@@ -100,7 +100,7 @@ class DeepLTranslator
   {
     ; 获取翻译结果
     try
-      str := this.page.Evaluate("document.querySelector('div.lmt__textarea_container.lmt__raise_alternatives_placement > div.lmt__inner_textarea_container > d-textarea').innerText;").value
+      str := this.page.Evaluate("document.querySelectorAll('d-textarea')[1].innerText;").value
     
     ; 去掉空白符后不为空则返回原文
     if (Trim(str, " `t`r`n`v`f")!="")
