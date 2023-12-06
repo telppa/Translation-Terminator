@@ -48,7 +48,7 @@ Init:
   gosub, CreatSub
   
   OnMessage(0x3, "WM_MOVE")
-  OnMessage(536, "OnPBMsg")  ; WM_POWERBROADCAST 从睡眠中醒来则重启
+  POWERBROADCAST.Register("GUID_CONSOLE_DISPLAY_STATE")  ; 屏幕重新亮起则重启
   
   ShowOrHideSub("", "", "", "")
 return
@@ -467,21 +467,51 @@ WM_MOVE()
   return
 }
 
-OnPBMsg(wParam, lParam, msg, hwnd)
+; 屏幕关闭后再打开则重启
+GUID_CONSOLE_DISPLAY_STATE(wParam, lParam)
 {
-  switch, wParam
-  {
-    ; PBT_APMRESUMECRITICAL PBT_APMRESUMESUSPEND PBT_APMRESUMEAUTOMATIC
-    case 6,7,18:
-      SetTimer, Reload, -1000
-  }
-
-  ; Must return True after message is processed
-  return, true
+  static flag
   
-  Reload:
-    Run "%A_AhkPath%" /restart "%A_ScriptFullPath%" /hide
-  return
+  switch NumGet(lParam+20, 0, "UChar")
+  {
+    case 0: flag := 1 ; 屏幕关闭
+    case 1:           ; 屏幕打开
+      if (flag)
+        Run "%A_AhkPath%" /restart "%A_ScriptFullPath%" /hide
+    case 2:           ; 屏幕即将关闭 约有5秒反应时间
+  }
+  
+  return true
+}
+
+; 大部分代码来自这里 https://www.autohotkey.com/boards/viewtopic.php?t=70645
+class POWERBROADCAST
+{
+  Register(function) {
+    ; https://learn.microsoft.com/zh-cn/windows/win32/power/power-setting-guids
+    ; GUID_CONSOLE_DISPLAY_STATE
+    this.RegisterPowerSettingNotification("6FE69556-704A-47A0-8F24-C28D936FDA47")
+    
+    BoundFunc := ObjBindMethod(this, "UnRegisterNotification")
+    OnExit(BoundFunc)
+    
+    OnMessage(0x218, function)
+  }
+  
+  RegisterPowerSettingNotification(GUID) {
+    VarSetCapacity(UUID, 16, 0)
+    DllCall("Rpcrt4\UuidFromString", "Str", GUID, "Ptr", &UUID)
+    
+    this.handle := DllCall("RegisterPowerSettingNotification"
+                          , "Ptr", A_ScriptHwnd
+                          , "Ptr", &UUID
+                          , "UInt", 0 ; DEVICE_NOTIFY_WINDOW_HANDLE
+                          , "Ptr")
+  }
+  
+  UnRegisterNotification() {
+    DllCall("UnregisterPowerSettingNotification", "Ptr", this.handle)
+  }
 }
 
 #Include <NonNull>
