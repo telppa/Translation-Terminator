@@ -173,7 +173,7 @@ class YoudaoTranslator
   
   _clearTransResult()
   {
-    try this.page.Evaluate("document.querySelector('#TextTranslate > div.source > a').click();")
+    try this.page.Evaluate("document.querySelector('#TextTranslate > div.source > div.text-translate-top-right > a').click();")
   }
   
   _receive(mode, timeout, result)
