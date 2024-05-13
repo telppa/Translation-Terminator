@@ -1,5 +1,5 @@
 ﻿; https://fanyi.baidu.com/
-; version: 2023.06.06
+; version: 2024.05.13
 
 class BaiduTranslator
 {
@@ -30,7 +30,7 @@ class BaiduTranslator
     
     ; 初始化，也就是先加载一次页面
     this.page := ChromeInst.GetPage()
-    this.page.Call("Page.navigate", {"url": "https://fanyi.baidu.com/#en/zh/init"}, mode="async" ? false : true)
+    this.page.Call("Page.navigate", {"url": "https://fanyi.baidu.com/mtpe-individual/multimodal?query=init&lang=en2zh"}, mode="async" ? false : true)
     
     ; 同步将产生阻塞直到返回结果，异步将快速返回以便用户自行处理结果
     this._receive(mode, timeout, "getInitResult")
@@ -68,7 +68,7 @@ class BaiduTranslator
     
     ; 构造 url
     l := this._convertLanguageAbbr(from, to)
-    url := Format("https://fanyi.baidu.com/#{1}/{2}/{3}", l.from, l.to, this.UriEncode(str))
+    url := Format("https://fanyi.baidu.com/mtpe-individual/multimodal?query={}&lang={}2{}", this.UriEncode(str), l.from, l.to)
     
     ; url 超过最大长度
     if (StrLen(url)>8182)
@@ -88,14 +88,13 @@ class BaiduTranslator
   {
     ; 获取翻译结果
     try
-      str := this.page.Evaluate("document.querySelector('div.output-bd').innerText;").value
+      str := this.page.Evaluate("document.querySelector('#trans-selection').innerText;").value
     
     ; 去掉空白符后不为空则返回原文
     if (Trim(str, " `t`r`n`v`f")!="")
     {
       ; baidu 会返回多余的换行
       str := StrReplace(str, "`n`n", "`r")
-      str := StrReplace(str, "`n", "")
       return StrReplace(str, "`r", "`n")
     }
   }
@@ -103,7 +102,6 @@ class BaiduTranslator
   free()
   {
     this.page.Call("Browser.close",, false) ; 关闭浏览器(所有页面和标签)
-    this.page.Disconnect()                  ; 断开连接
   }
   
   _multiLanguage()
@@ -145,7 +143,7 @@ class BaiduTranslator
   
   _clearTransResult()
   {
-    this.page.Evaluate("document.querySelector('div.output-bd').innerText='';")
+    try this.page.Evaluate("document.querySelector('#editor-text > div > div > span').click();")
   }
   
   _receive(mode, timeout, result)
