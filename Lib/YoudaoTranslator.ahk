@@ -1,5 +1,5 @@
 ﻿; https://fanyi.youdao.com/
-; version: 2023.06.06
+; version: 2024.05.13
 
 class YoudaoTranslator
 {
@@ -101,7 +101,6 @@ class YoudaoTranslator
   free()
   {
     this.page.Call("Browser.close",, false) ; 关闭浏览器(所有页面和标签)
-    this.page.Disconnect()                  ; 断开连接
   }
   
   _multiLanguage()
