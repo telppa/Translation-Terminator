@@ -31,6 +31,7 @@ However, the following common languages always use the same abbreviations in dif
 葡萄牙语     pt  Portuguese
 日语         ja  Japanese
 瑞典语       sv  Swedish
+书面挪威语   nb  Norwegian
 斯洛伐克语   sk  Slovak
 斯洛文尼亚语 sl  Slovenian
 泰语         th  Thai
