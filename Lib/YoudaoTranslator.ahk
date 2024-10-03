@@ -1,5 +1,5 @@
 ﻿; https://fanyi.youdao.com/
-; version: 2024.05.13
+; version: 2024.10.03
 
 class YoudaoTranslator
 {
@@ -30,7 +30,7 @@ class YoudaoTranslator
     
     ; 初始化，也就是先加载一次页面
     this.page := ChromeInst.GetPage()
-    this.page.Call("Page.navigate", {"url": "https://fanyi.youdao.com/index.html#/"}, mode="async" ? false : true)
+    this.page.Call("Page.navigate", {"url": "https://fanyi.youdao.com/index.html#/TextTranslate"}, mode="async" ? false : true)
     
     ; 同步将产生阻塞直到返回结果，异步将快速返回以便用户自行处理结果
     this._receive(mode, timeout, "getInitResult")
@@ -100,7 +100,10 @@ class YoudaoTranslator
   
   free()
   {
-    this.page.Call("Browser.close",, false) ; 关闭浏览器(所有页面和标签)
+    try ret := this.page.Call("Browser.getVersion",,, 1) ; 确保 ws 连接正常
+    
+    if (ret)
+      this.page.Call("Browser.close") ; 关闭浏览器(所有页面和标签)
   }
   
   _multiLanguage()
