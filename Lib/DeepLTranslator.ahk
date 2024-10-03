@@ -1,5 +1,5 @@
 ﻿; https://www.deepl.com/translator
-; version: 2023.10.09
+; version: 2024.10.03
 
 class DeepLTranslator
 {
@@ -65,29 +65,16 @@ class DeepLTranslator
     if (StrLen(str)>3000)
       return {Error : this.multiLanguage.3}
     
-    ; 源语言与目标语言同为中文，则修改目标语言为英文
-    if (from="auto" and to="zh")
-    {
-      RegExReplace(str, "[一-龟]",, Chinese_Characters_Len)
-      if (Chinese_Characters_Len/StrLen(str) > 0.6)
-        to := "en"
-    }
+    ; 清空原文
+    this._clearTransResult()
     
-    ; 检测语种是否在支持范围内
-    l := this._convertLanguageAbbr(from, to)
-    if (l.Error)
+    ; 选择语言
+    if (this._convertLanguageAbbr(from, to).Error)
       return {Error : this.multiLanguage.6}
     
-    ; 构造 url
-    ; deepl 需要额外将转义后的 / 再次转义为 \/ 即 %2F 转为 %5C%2F
-    url := Format("https://www.deepl.com/translator#{1}/{2}/{3}", l.from, l.to, StrReplace(this.UriEncode(str), "%2F", "%5C%2F"))
-    
-    ; url 超过最大长度
-    if (StrLen(url)>8182)
-      return {Error : this.multiLanguage.4}
-    
     ; 翻译
-    this.page.Call("Page.navigate", {"url": url}, mode="async" ? false : true)
+    this.page.Evaluate("document.querySelector('[data-testid=""translator-source-input""]').focus();")
+    this.page.Call("Input.insertText", {"text": str}, mode="async" ? false : true)
     return this._receive(mode, timeout, "getTransResult")
   }
   
@@ -114,8 +101,10 @@ class DeepLTranslator
   
   free()
   {
-    this.page.Call("Browser.close",, false) ; 关闭浏览器(所有页面和标签)
-    this.page.Disconnect()                  ; 断开连接
+    try ret := this.page.Call("Browser.getVersion",,, 1) ; 确保 ws 连接正常
+    
+    if (ret)
+      this.page.Call("Browser.close") ; 关闭浏览器(所有页面和标签)
   }
   
   _multiLanguage()
@@ -144,40 +133,87 @@ class DeepLTranslator
   
   _convertLanguageAbbr(from, to)
   {
-    /*
-      检测源语言     捷克语           乌克兰语
-      爱沙尼亚语     拉脱维亚语       西班牙语
-      保加利亚语     立陶宛语         希腊语
-      波兰语         罗马尼亚语       匈牙利语
-      丹麦语         葡萄牙语         意大利语
-      德语           日语             印尼语
-      俄语           瑞典语           英语
-      法语           书面挪威语       中文
-      芬兰语         斯洛伐克语       
-      韩语           斯洛文尼亚语     
-      荷兰语         土耳其语         
-    */
-    dict := { auto:"auto",     cs:"cs",     uk:"uk"
-            , et:"et",         lv:"lv",     es:"es"
-            , bg:"bg",         lt:"lt",     el:"el"
-            , pl:"pl",         ro:"ro",     hu:"hu"
-            , da:"da",         pt:"pt",     it:"it"
-            , de:"de",         ja:"ja",     id:"id"
-            , ru:"ru",         sv:"sv",     en:"en"
-            , fr:"fr",         nb:"nb",     zh:"zh"
-            , fi:"fi",         sk:"sk"
-            , ko:"ko",         sl:"sl"
-            , nl:"nl",         tr:"tr" }
+    languageSelected := from "-" to
     
-    if (!dict.HasKey(from) or !dict.HasKey(to))
-      return {Error : this.multiLanguage.6}
-    else
-      return {from:dict[from], to:dict[to]}
+    ; 语言发生变化，需要重新选择
+    if (languageSelected!=this.languageSelected)
+    {
+      this.languageSelected := languageSelected
+      
+      if (from="auto" or to="auto" or from=to)
+      {
+        this.page.Evaluate("document.querySelector('[data-testid=""translator-source-lang-btn""]').click();")
+        this.page.Evaluate("document.querySelector('[data-testid=""translator-lang-option-auto""]').click();")
+      }
+      else
+      {
+        /*
+          检测源语言     荷兰语           土耳其语
+          阿拉伯语       捷克语           乌克兰语
+          爱沙尼亚语     拉脱维亚语       西班牙语
+          保加利亚语     立陶宛语         希腊语
+          波兰语         罗马尼亚语       匈牙利语
+          丹麦语         葡萄牙语         意大利语
+          德语           日语             印尼语
+          俄语           瑞典语           英语
+          法语           书面挪威语       中文
+          芬兰语         斯洛伐克语       
+          韩语           斯洛文尼亚语     
+        */
+        dict_from := {  auto:"auto",     nl:"nl",     tr:"tr"
+                      , ar:"ar",         cs:"cs",     uk:"uk"
+                      , et:"et",         lv:"lv",     es:"es"
+                      , bg:"bg",         lt:"lt",     el:"el"
+                      , pl:"pl",         ro:"ro",     hu:"hu"
+                      , da:"da",         pt:"pt",     it:"it"
+                      , de:"de",         ja:"ja",     id:"id"
+                      , ru:"ru",         sv:"sv",     en:"en"
+                      , fr:"fr",         nb:"nb",     zh:"zh"
+                      , fi:"fi",         sk:"sk"
+                      , ko:"ko",         sl:"sl"}
+        
+        /*
+          阿拉伯语       捷克语               土耳其语
+          爱沙尼亚语     拉脱维亚语           乌克兰语
+          保加利亚语     立陶宛语             西班牙语
+          波兰语         罗马尼亚语           希腊语
+          丹麦语         葡萄牙语             匈牙利语
+          德语           葡萄牙语（巴西）     意大利语
+          俄语           日语                 印尼语
+          法语           瑞典语               英语（美式）
+          芬兰语         书面挪威语           英语（英式）
+          韩语           斯洛伐克语           中文（简体）
+          荷兰语         斯洛文尼亚语         中文（繁体）
+        */
+        dict_to := {  ar:"ar",     cs:"cs",         tr:"tr"
+                    , et:"et",     lv:"lv",         uk:"uk"
+                    , bg:"bg",     lt:"lt",         es:"es"
+                    , pl:"pl",     ro:"ro",         el:"el"
+                    , da:"da",     pt:"pt-PT",      hu:"hu"
+                    , de:"de",     pt2:"pt-BR",     it:"it"
+                    , ru:"ru",     ja:"ja",         id:"id"
+                    , fr:"fr",     sv:"sv",         en:"en-US"
+                    , fi:"fi",     nb:"nb",         en2:"en-GB"
+                    , ko:"ko",     sk:"sk",         zh:"zh-Hans"
+                    , nl:"nl",     sl:"sl",         zh2:"zh-Hant"}
+        
+        if (!dict_from.HasKey(from) or !dict_to.HasKey(to))
+          return {Error : this.multiLanguage.6}
+        else
+        {
+          this.page.Evaluate("document.querySelector('[data-testid=""translator-source-lang-btn""]').click();")
+          this.page.Evaluate(Format("document.querySelector('[data-testid=""translator-lang-option-{}""]').click();"), dict_from[from])
+          
+          this.page.Evaluate("document.querySelector('[data-testid=""translator-target-lang-btn""]').click();")
+          this.page.Evaluate(Format("document.querySelector('[data-testid=""translator-lang-option-{}""]').click();"), dict_to[to])
+        }
+      }
+    }
   }
   
   _clearTransResult()
   {
-    this.page.Evaluate("document.querySelector('d-textarea').innerText='';")
+    try this.page.Evaluate("document.querySelector('[data-testid=""translator-source-clear-button""]').click();")
   }
   
   _receive(mode, timeout, result)
