@@ -1,5 +1,5 @@
 ﻿; https://fanyi.sogou.com/
-; version: 2023.06.06
+; version: 2024.10.03
 
 class SogouTranslator
 {
@@ -93,8 +93,10 @@ class SogouTranslator
   
   free()
   {
-    this.page.Call("Browser.close",, false) ; 关闭浏览器(所有页面和标签)
-    this.page.Disconnect()                  ; 断开连接
+    try ret := this.page.Call("Browser.getVersion",,, 1) ; 确保 ws 连接正常
+    
+    if (ret)
+      this.page.Call("Browser.close") ; 关闭浏览器(所有页面和标签)
   }
   
   _multiLanguage()

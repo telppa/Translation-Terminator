@@ -101,7 +101,10 @@ class BaiduTranslator
   
   free()
   {
-    this.page.Call("Browser.close",, false) ; 关闭浏览器(所有页面和标签)
+    try ret := this.page.Call("Browser.getVersion",,, 1) ; 确保 ws 连接正常
+    
+    if (ret)
+      this.page.Call("Browser.close") ; 关闭浏览器(所有页面和标签)
   }
   
   _multiLanguage()
