@@ -4,7 +4,7 @@ https://github.com/telppa/BeautifulToolTip
 If you want to add your own style to the built-in style, you can add it directly in btt().
 
 version:
-2021.10.03
+2022.11.29
 
 changelog:
 2022.11.29
