@@ -1,5 +1,5 @@
 ﻿; https://fanyi.baidu.com/
-; version: 2024.05.13
+; version: 2024.10.03
 
 class BaiduTranslator
 {
@@ -132,9 +132,13 @@ class BaiduTranslator
   {
     ; 由于 baidu 支持的语言实在太多，所以不进行语种是否支持的判断
     ; 除 ro 被罗姆语占用外，其它均是无冲突转换
-    dict     := {ar:"ara", uk:"ukr", vi:"vie", et:"est", bg:"bul"
-               , da:"dan", fr:"fra", fi:"fin", ko:"kor", lv:"lav"
-               , lt:"lit", ro:"rom", ja:"jp",  sv:"swe", sl:"slo", es:"spa"}
+    dict     := { ar:"ara", et:"est", bg:"bul", pl:"pl",  da:"dan"
+                , de:"de",  ru:"ru",  fr:"fra", fi:"fin", ko:"kor"
+                , nl:"nl",  cs:"cs",  lv:"lav", lt:"lit", ro:"rom"
+                , pt:"pt",  ja:"jp",  sv:"swe", nb:"nob", sk:"sk"
+                , sl:"slo", th:"th",  tr:"tr",  uk:"ukr", es:"spa"
+                , el:"el",  hu:"hu",  it:"it",  id:"id",  en:"en"
+                , vi:"vie", zh:"zh"}
     ret      := {}
     ret.from := dict.HasKey(from) ? dict[from] : from
     ret.to   := dict.HasKey(to)   ? dict[to]   : to
