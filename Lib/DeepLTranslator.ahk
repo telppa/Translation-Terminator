@@ -1,5 +1,5 @@
 ﻿; https://www.deepl.com/translator
-; version: 2024.10.03
+; version: 2025.07.04
 
 class DeepLTranslator
 {
@@ -67,6 +67,14 @@ class DeepLTranslator
     
     ; 清空原文
     this._clearTransResult()
+    
+    ; 源语言与目标语言同为中文，则修改目标语言为英文
+    if (from~="(auto|zh)" and to="zh")
+    {
+      RegExReplace(str, "[一-龟]",, Chinese_Characters_Len)
+      if (Chinese_Characters_Len/StrLen(str) > 0.6)
+        to := "en"
+    }
     
     ; 选择语言
     if (this._convertLanguageAbbr(from, to).Error)
@@ -213,7 +221,8 @@ class DeepLTranslator
   
   _clearTransResult()
   {
-    try this.page.Evaluate("document.querySelector('[data-testid=""translator-source-clear-button""]').click();")
+    try this.page.Evaluate("document.querySelector('#translator-source-clear-button').click();")
+    Sleep 200
   }
   
   _receive(mode, timeout, result)
