@@ -1,5 +1,5 @@
 ﻿; https://www.deepl.com/translator
-; version: 2025.07.04
+; version: 2025.09.09
 
 class DeepLTranslator
 {
@@ -151,7 +151,17 @@ class DeepLTranslator
       if (from="auto" or to="auto" or from=to)
       {
         this.page.Evaluate("document.querySelector('[data-testid=""translator-source-lang-btn""]').click();")
-        this.page.Evaluate("document.querySelector('[data-testid=""translator-lang-option-auto""]').click();")
+        loop 5
+        {
+          Sleep 100
+          
+          try
+            this.page.Evaluate("document.querySelector('[data-testid=""translator-lang-option-auto""]').click();")
+          catch
+            continue
+          
+          break
+        }
       }
       else
       {
